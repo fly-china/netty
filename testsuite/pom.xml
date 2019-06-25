@@ -67,7 +67,7 @@
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>${tcnative.artifactId}</artifactId>
-      <classifier>${tcnative.classifier}</classifier>
+      <!--<classifier>${tcnative.classifier}</classifier>-->
       <optional>true</optional>
     </dependency>
 

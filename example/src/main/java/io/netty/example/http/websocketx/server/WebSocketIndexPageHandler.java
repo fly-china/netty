@@ -108,4 +108,17 @@ public class WebSocketIndexPageHandler extends SimpleChannelInboundHandler<FullH
         }
         return protocol + "://" + req.headers().get(HttpHeaderNames.HOST) + path;
     }
+
+    @Override
+    public void channelActive(ChannelHandlerContext ctx) throws Exception {
+        super.channelActive(ctx);
+
+        System.out.println("有人建立连接:" + ctx.channel().localAddress().toString());
+    }
+
+    @Override
+    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+        super.channelInactive(ctx);
+        System.out.println("有人释放连接" + ctx.channel().localAddress().toString());
+    }
 }

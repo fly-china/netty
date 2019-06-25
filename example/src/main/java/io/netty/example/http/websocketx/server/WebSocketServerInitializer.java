@@ -22,6 +22,8 @@ import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
 import io.netty.handler.codec.http.websocketx.extensions.compression.WebSocketServerCompressionHandler;
+import io.netty.handler.logging.LogLevel;
+import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SslContext;
 
 /**
@@ -40,6 +42,8 @@ public class WebSocketServerInitializer extends ChannelInitializer<SocketChannel
     public void initChannel(SocketChannel ch) throws Exception {
         ChannelPipeline pipeline = ch.pipeline();
         if (sslCtx != null) {
+            // SslHandler 将是 ChannelPipeline 中的第一个 ChannelHandler。
+            // 这确保了只有在所有其他的 ChannelHandler 将它们的逻辑应用到数据之后，才会进行加密
             pipeline.addLast(sslCtx.newHandler(ch.alloc()));
         }
         pipeline.addLast(new HttpServerCodec());

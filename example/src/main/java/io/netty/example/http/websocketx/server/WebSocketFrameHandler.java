@@ -34,6 +34,7 @@ public class WebSocketFrameHandler extends SimpleChannelInboundHandler<WebSocket
         if (frame instanceof TextWebSocketFrame) {
             // Send the uppercase string back.
             String request = ((TextWebSocketFrame) frame).text();
+            System.out.println("接受到客户端消息：" + request);
             ctx.channel().writeAndFlush(new TextWebSocketFrame(request.toUpperCase(Locale.US)));
         } else {
             String message = "unsupported frame type: " + frame.getClass().getName();
