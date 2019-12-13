@@ -65,6 +65,7 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
     }
 
     /**
+     * 指定父（接受连接）和子（处理client请求）的EventLoopGroup使用同一个
      * Specify the {@link EventLoopGroup} which is used for the parent (acceptor) and the child (client).
      */
     @Override
@@ -73,6 +74,7 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
     }
 
     /**
+     * 设置父（接受连接）和子（处理client请求）的EventLoopGroup，用来为ServerChannel和Channel处理所有的事件和IO
      * Set the {@link EventLoopGroup} for the parent (acceptor) and the child (client). These
      * {@link EventLoopGroup}'s are used to handle all the events and IO for {@link ServerChannel} and
      * {@link Channel}'s.
@@ -90,6 +92,10 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
     }
 
     /**
+     * childOption()和option()的区别参见：https://stackoverflow.com/questions/35496345/what-is-the-difference-between-serverbootstrap-option-and-serverbootstrap-chil
+     * 简言之：childOption()用于bossGroup，而option()用于workerGroup
+     * 注意花括号中的那句话：在接收器接受创建Channel后
+     *
      * Allow to specify a {@link ChannelOption} which is used for the {@link Channel} instances once they get created
      * (after the acceptor accepted the {@link Channel}). Use a value of {@code null} to remove a previous set
      * {@link ChannelOption}.
@@ -288,6 +294,12 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
     @Override
     @SuppressWarnings("CloneDoesntCallSuperClone")
     public ServerBootstrap clone() {
+        /**
+         * 通过调用ServerBootstrap（内部调用父类AbstractBootstrap）的构造方法，新实例化对象，实现深拷贝
+         * 但是，根据构造方法我们可以看出：
+         * group、childGroup、channelFactory、handler、childHandler、localAddress都是浅拷贝属性
+         * options、childOptions、attrs、childAttrs都是深拷贝属性
+         */
         return new ServerBootstrap(this);
     }
 

@@ -43,9 +43,14 @@ import java.util.Map;
 /**
  * {@link AbstractBootstrap} is a helper class that makes it easy to bootstrap a {@link Channel}. It support
  * method-chaining to provide an easy way to configure the {@link AbstractBootstrap}.
+ * AbstractBootstrap是一个使引导启动一个Channel更简单的帮助类。它支持方法链的方式以提供简单的方式去配置AbstractBootstrap
  *
  * <p>When not used in a {@link ServerBootstrap} context, the {@link #bind()} methods are useful for connectionless
  * transports such as datagram (UDP).</p>
+ * 当它不在ServerBootstrap上下文中使用时，bind()方法对于无连接的传输（如：udp）非常有用
+ *
+ * 泛型B:继承 AbstractBootstrap 类，用于表示自身的类型
+ * 泛型C:继承 Channel 类，表示表示创建的 Channel 类型
  */
 public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C extends Channel> implements Cloneable {
 
@@ -58,7 +63,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     private volatile ChannelHandler handler;
 
     AbstractBootstrap() {
-        // Disallow extending from a different package.
+        // Disallow extending from a different package.不允许从不同的包进行扩展。
     }
 
     AbstractBootstrap(AbstractBootstrap<B, C> bootstrap) {
@@ -75,6 +80,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     }
 
     /**
+     * 这个EventLoopGroup是用来处理所有 要创建Channel通道连接 的事件
      * The {@link EventLoopGroup} which is used to handle all the events for the to-be-created
      * {@link Channel}
      */
@@ -95,6 +101,9 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     }
 
     /**
+     * Channel实例是按照入参Class创建的。你可以使用指定Class或者使用ChannelFactory（如果你的Channel实现类没有无参构造方法）
+     * 虽然传入的 channelClass 参数，但是会使用 io.netty.channel.ReflectiveChannelFactory 进行封装
+     *
      * The {@link Class} which is used to create {@link Channel} instances from.
      * You either use this or {@link #channelFactory(io.netty.channel.ChannelFactory)} if your
      * {@link Channel} implementation has no no-args constructor.
@@ -114,7 +123,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         if (channelFactory == null) {
             throw new NullPointerException("channelFactory");
         }
-        if (this.channelFactory != null) {
+        if (this.channelFactory != null) { // 不允许重复创建
             throw new IllegalStateException("channelFactory set already");
         }
 
@@ -164,6 +173,9 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     }
 
     /**
+     * 允许指定一个ChannelOption，用于Channel实例创建时。可以将value参数指定为null来移除之前的设置
+     * 对于“要创建的Channel”的指定option
+     *
      * Allow to specify a {@link ChannelOption} which is used for the {@link Channel} instances once they got
      * created. Use a value of {@code null} to remove a previous set {@link ChannelOption}.
      */
@@ -171,11 +183,11 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         if (option == null) {
             throw new NullPointerException("option");
         }
-        if (value == null) {
+        if (value == null) {// value为null，即移除此option
             synchronized (options) {
                 options.remove(option);
             }
-        } else {
+        } else {// 非空，则进行设置
             synchronized (options) {
                 options.put(option, value);
             }
@@ -184,6 +196,8 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     }
 
     /**
+     * 允许为新创建的Channel指定一个初始属性。如果将value参数指定为null，则先前指定此key的属性会被移除
+     *
      * Allow to specify an initial attribute of the newly created {@link Channel}.  If the {@code value} is
      * {@code null}, the attribute of the specified {@code key} is removed.
      */
@@ -204,6 +218,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     }
 
     /**
+     * 校验基础配置是否合法，子类会重写此方法，但方法内部必须调用父类的校验。
      * Validate all the parameters. Sub-classes may override this, but should
      * call the super method in that case.
      */
@@ -218,6 +233,9 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     }
 
     /**
+     * 返回一个具有相同配置的深克隆的bootstrap。此方法在 创建多个具有类似配置的Channel 时非常有用。
+     * 注意：此方法不会深克隆EventLoopGroup，而是浅克隆，会让EventLoopGroup成为共享资源
+     *      （即：多个不同的但是配置类似bootstrap，他们的EventLoopGroup对象是同一份，公用使用）。
      * Returns a deep clone of this bootstrap which has the identical configuration.  This method is useful when making
      * multiple {@link Channel}s with similar settings.  Please note that this method does not clone the
      * {@link EventLoopGroup} deeply but shallowly, making the group a shared resource.
@@ -227,6 +245,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     public abstract B clone();
 
     /**
+     * 创建一个新Channel，并使用EventLoop注册它
      * Create a new {@link Channel} and register it with an {@link EventLoop}.
      */
     public ChannelFuture register() {
@@ -235,14 +254,17 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     }
 
     /**
+     * 创建一个新Channel并绑定
      * Create a new {@link Channel} and bind it.
      */
     public ChannelFuture bind() {
+        // 校验参数、配置是否合法
         validate();
         SocketAddress localAddress = this.localAddress;
         if (localAddress == null) {
             throw new IllegalStateException("localAddress not set");
         }
+        // 绑定本地地址、端口
         return doBind(localAddress);
     }
 
@@ -291,6 +313,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
             doBind0(regFuture, channel, localAddress, promise);
             return promise;
         } else {
+            // 注册回调几乎总是已经完成，但是为了以防万一
             // Registration future is almost always fulfilled already, but just in case it's not.
             final PendingRegistrationPromise promise = new PendingRegistrationPromise(channel);
             regFuture.addListener(new ChannelFutureListener() {
@@ -357,6 +380,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
             final ChannelFuture regFuture, final Channel channel,
             final SocketAddress localAddress, final ChannelPromise promise) {
 
+        // 此方法在channelRegistered()被触发之前调用。让用户handlers有机会在其channelRegistered()实现中设置pipeline。
         // This method is invoked before channelRegistered() is triggered.  Give user handlers a chance to set up
         // the pipeline in its channelRegistered() implementation.
         channel.eventLoop().execute(new Runnable() {
@@ -372,7 +396,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     }
 
     /**
-     * the {@link ChannelHandler} to use for serving the requests.
+     * the {@link ChannelHandler} to use for serving the requests. 用于服务于请求的ChannelHandler
      */
     public B handler(ChannelHandler handler) {
         if (handler == null) {
@@ -393,6 +417,8 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     }
 
     /**
+     * 返回AbstractBootstrapConfig这个抽象类，它可以用于获取当前bootstrap的配置
+     *
      * Returns the {@link AbstractBootstrapConfig} object that can be used to obtain the current config
      * of the bootstrap.
      */
@@ -455,6 +481,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     @SuppressWarnings("unchecked")
     private static void setChannelOption(
             Channel channel, ChannelOption<?> option, Object value, InternalLogger logger) {
+        // 对于已创建的channel（入参）指定option
         try {
             if (!channel.config().setOption((ChannelOption<Object>) option, value)) {
                 logger.warn("Unknown channel option '{}' for channel '{}'", option, channel);
@@ -495,6 +522,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
                 // See https://github.com/netty/netty/issues/2586
                 return super.executor();
             }
+            // 通知失败，所以我们只能使用GlobalEventExecutor作为最后的通知手段
             // The registration failed so we can only use the GlobalEventExecutor as last resort to notify.
             return GlobalEventExecutor.INSTANCE;
         }

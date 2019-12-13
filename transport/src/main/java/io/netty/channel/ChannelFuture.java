@@ -59,6 +59,8 @@ import java.util.concurrent.TimeUnit;
  *                                      +---------------------------+
  * </pre>
  *
+ * netty提供了各种方法让你检验I/O操作是否 已经完成、等待完成、并检索到IO操作的结果。
+ * 它也支持你添加ChannelFutureListener监听器，使你在IO操作完成时得到通知。同时也强烈建议使用添加Listener的方式，而不是使用await的阻塞方式
  * Various methods are provided to let you check if the I/O operation has been
  * completed, wait for the completion, and retrieve the result of the I/O
  * operation. It also allows you to add {@link ChannelFutureListener}s so you
@@ -77,6 +79,11 @@ import java.util.concurrent.TimeUnit;
  * performance and resource utilization because it does not block at all, but
  * it could be tricky to implement a sequential logic if you are not used to
  * event-driven programming.
+ * ChannelFutureListener能够产生最佳的性能和资源利用率，因为它根本不会阻塞，但是如果不使用事件驱动的编程，那么实现顺序逻辑可能会比较棘手。
+ *
+ * 作为比较，await()是一个阻塞操作。一旦调用，调用者线程将会阻塞直至操作结束。它更容易实现一段顺序逻辑，但是调用者线程
+ * 将会没必要的阻塞知道IO操作完成，并且线程间的通知相对来说开销较大。甚至在特定情况下还有可能发生死锁。
+ * 注：**永远不要在ChannelHandler内部使用await()这样的阻塞方法，因为会因此产生死锁**
  * <p>
  * By contrast, {@link #await()} is a blocking operation.  Once called, the
  * caller thread blocks until the operation is done.  It is easier to implement
@@ -120,8 +127,11 @@ import java.util.concurrent.TimeUnit;
  * make sure you do not call {@link #await()} in an I/O thread.  Otherwise,
  * {@link BlockingOperationException} will be raised to prevent a dead lock.
  *
+ * 不要混淆 I/O超时 和 await超时
  * <h3>Do not confuse I/O timeout and await timeout</h3>
  *
+ * await指定的超时和与I/O超时完全无关。如果一个I/O超时，future会被标记为"已完成但是失败"。
+ * 比如；connect连接超时应该通过一个transport-specific 的option配置项来完成
  * The timeout value you specify with {@link #await(long)},
  * {@link #await(long, TimeUnit)}, {@link #awaitUninterruptibly(long)}, or
  * {@link #awaitUninterruptibly(long, TimeUnit)} are not related with I/O

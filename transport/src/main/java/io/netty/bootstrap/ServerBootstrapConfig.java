@@ -51,6 +51,7 @@ public final class ServerBootstrapConfig extends AbstractBootstrapConfig<ServerB
     }
 
     /**
+     * 调用ServerBootstrap的childOptions()方法，返回一份拷贝后的options
      * Returns a copy of the configured options which will be used for the child channels.
      */
     public Map<ChannelOption<?>, Object> childOptions() {
