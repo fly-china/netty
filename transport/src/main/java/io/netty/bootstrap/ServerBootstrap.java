@@ -15,6 +15,7 @@
  */
 package io.netty.bootstrap;
 
+import com.sun.xml.internal.bind.v2.TODO;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelConfig;
 import io.netty.channel.ChannelFuture;
@@ -144,14 +145,14 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
     }
 
     @Override
-    void init(Channel channel) throws Exception {
+    void init(Channel channel) throws Exception {// 对刚实例化后的channel对象进行服务端的初始化
         final Map<ChannelOption<?>, Object> options = options0();
-        synchronized (options) {
+        synchronized (options) {// 设置option配置
             setChannelOptions(channel, options, logger);
         }
 
         final Map<AttributeKey<?>, Object> attrs = attrs0();
-        synchronized (attrs) {
+        synchronized (attrs) {// 设置attr属性
             for (Entry<AttributeKey<?>, Object> e: attrs.entrySet()) {
                 @SuppressWarnings("unchecked")
                 AttributeKey<Object> key = (AttributeKey<Object>) e.getKey();
@@ -161,14 +162,15 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
 
         ChannelPipeline p = channel.pipeline();
 
+        // TODO: 为什么childGroup、childHandler不需要转换，而childOptions和childAttrs需要做转换
         final EventLoopGroup currentChildGroup = childGroup;
         final ChannelHandler currentChildHandler = childHandler;
         final Entry<ChannelOption<?>, Object>[] currentChildOptions;
         final Entry<AttributeKey<?>, Object>[] currentChildAttrs;
-        synchronized (childOptions) {
+        synchronized (childOptions) {// 把Map转换成一维数组
             currentChildOptions = childOptions.entrySet().toArray(newOptionArray(0));
         }
-        synchronized (childAttrs) {
+        synchronized (childAttrs) {// 把Map转换成一维数组
             currentChildAttrs = childAttrs.entrySet().toArray(newAttrArray(0));
         }
 
@@ -177,6 +179,10 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
             public void initChannel(final Channel ch) throws Exception {
                 final ChannelPipeline pipeline = ch.pipeline();
                 ChannelHandler handler = config.handler();
+                /**
+                 * TODO 难道config的handler只能最多有一个？？？？
+                 *  此处这个获得的handler莫非是这个EchoServer中配置的全局LoggingHandler？
+                 */
                 if (handler != null) {
                     pipeline.addLast(handler);
                 }
@@ -244,6 +250,9 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
             };
         }
 
+        /**
+         * 接受到消息并处理，内部逻辑相当于在创建子Channel
+         */
         @Override
         @SuppressWarnings("unchecked")
         public void channelRead(ChannelHandlerContext ctx, Object msg) {

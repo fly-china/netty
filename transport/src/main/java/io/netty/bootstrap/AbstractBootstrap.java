@@ -173,7 +173,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     }
 
     /**
-     * 允许指定一个ChannelOption，用于Channel实例创建时。可以将value参数指定为null来移除之前的设置
+     * 允许为**新创建的**Channel指定一个ChannelOption。可以将value参数指定为null来移除之前的设置
      * 对于“要创建的Channel”的指定option
      *
      * Allow to specify a {@link ChannelOption} which is used for the {@link Channel} instances once they got
@@ -196,7 +196,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     }
 
     /**
-     * 允许为新创建的Channel指定一个初始属性。如果将value参数指定为null，则先前指定此key的属性会被移除
+     * 允许为**新创建的**Channel指定一个初始属性。如果将value参数指定为null，则先前指定此key的属性会被移除
      *
      * Allow to specify an initial attribute of the newly created {@link Channel}.  If the {@code value} is
      * {@code null}, the attribute of the specified {@code key} is removed.
@@ -301,12 +301,14 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     }
 
     private ChannelFuture doBind(final SocketAddress localAddress) {
+        // 初始化一个Channel，并将channel注册到EventLoopGroup。由于注册是异步过程，所以返回ChannelFuture对象。
         final ChannelFuture regFuture = initAndRegister();
         final Channel channel = regFuture.channel();
-        if (regFuture.cause() != null) {
+        if (regFuture.cause() != null) { // ChannelFuture#cause 是失败的标志，失败则直接返回
             return regFuture;
         }
 
+        // TODO:下面是干嘛的
         if (regFuture.isDone()) {
             // At this point we know that the registration was complete and successful.
             ChannelPromise promise = channel.newPromise();
@@ -340,6 +342,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     final ChannelFuture initAndRegister() {
         Channel channel = null;
         try {
+            // 通过ReflectiveChannelFactory中反射调用对应Class类名的默认构造方法，实例化一个Channel对象
             channel = channelFactory.newChannel();
             init(channel);
         } catch (Throwable t) {

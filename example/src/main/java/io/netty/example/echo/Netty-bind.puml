@@ -1,0 +1,12 @@
+@startuml
+'Alice -> Bob: Authentication Request
+'Bob --> Alice: Authentication Response
+'
+'Alice -> Bob: Another authentication Request
+'Alice <-- Bob: another authentication Response
+
+'AbstractBootstrap -> ChannelFactory
+AbstractBootstrap -> ChannelFactory : hahah
+AbstractBootstrap -> AbstractBootstrap:  1、bind(SocketAddress localAddress):ChannelFuture
+
+@enduml

@@ -175,6 +175,7 @@ import java.util.concurrent.TimeUnit;
 public interface ChannelFuture extends Future<Void> {
 
     /**
+     * 返回一个Channel通道，在该通道中，将执行与此future关联的I/O操作。
      * Returns a channel where the I/O operation associated with this
      * future takes place.
      */
