@@ -300,6 +300,13 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         return doBind(localAddress);
     }
 
+    /**
+     * 整体分三步走：
+     * 1、初始化Channel
+     * 2、异步注册Channel到EventLoopGroup
+     * 3、异步绑定Channel
+     * 虽说是步骤2是异步操作，但是netty巧妙的Future事件驱动机制设计，保证步骤3开始前步骤2一定完成。这就是ChannelFuture中介绍的，巧妙的使用异步也可以完成顺序逻辑。
+     */
     private ChannelFuture doBind(final SocketAddress localAddress) {
         // 初始化一个Channel，并将channel注册到EventLoopGroup。由于注册是异步过程，所以返回ChannelFuture对象。
         final ChannelFuture regFuture = initAndRegister();
@@ -308,13 +315,14 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
             return regFuture;
         }
 
-        // TODO:下面是干嘛的
         if (regFuture.isDone()) {
+            // 异步注册Channel完成时，进行核心doBind()操作
             // At this point we know that the registration was complete and successful.
             ChannelPromise promise = channel.newPromise();
             doBind0(regFuture, channel, localAddress, promise);
             return promise;
         } else {
+            // 异步注册Channel未完成时，通过addListener的方式，异步注册Channel完成后，回调operationComplete方法进行核心doBind()操作
             // 注册回调几乎总是已经完成，但是为了以防万一
             // Registration future is almost always fulfilled already, but just in case it's not.
             final PendingRegistrationPromise promise = new PendingRegistrationPromise(channel);
@@ -331,7 +339,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
                         // See https://github.com/netty/netty/issues/2586
                         promise.registered();
 
-                        doBind0(regFuture, channel, localAddress, promise);
+                        doBind0(regFuture, channel, localAddress, promise);// 绑定
                     }
                 }
             });
@@ -379,6 +387,11 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
 
     abstract void init(Channel channel) throws Exception;
 
+    /**
+     * 该方法的核心在于channel.bind()
+     * doBind0()方法一定发生在doBind()方法内，channel的register完成之后。
+     * ** 故：Channel的bind逻辑，一定发生在register之后 **
+     */
     private static void doBind0(
             final ChannelFuture regFuture, final Channel channel,
             final SocketAddress localAddress, final ChannelPromise promise) {
