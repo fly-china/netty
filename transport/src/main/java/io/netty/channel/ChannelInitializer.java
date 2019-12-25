@@ -133,7 +133,7 @@ public abstract class ChannelInitializer<C extends Channel> extends ChannelInbou
                 exceptionCaught(ctx, cause);
             } finally {
                 ChannelPipeline pipeline = ctx.pipeline();
-                if (pipeline.context(this) != null) {
+                if (pipeline.context(this) != null) {// initChannel初始化完成之后，移除本身（ServerBootStrap）
                     pipeline.remove(this);
                 }
             }

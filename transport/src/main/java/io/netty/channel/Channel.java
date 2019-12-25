@@ -194,6 +194,9 @@ public interface Channel extends AttributeMap, ChannelOutboundInvoker, Comparabl
     Channel flush();
 
     /**
+     * Unsafe 操作不允许被用户代码使用。这些函数仅仅是用于真正的数据传输操作，而且必须被IO线程调用。
+     * 实际上：Channel 真正的具体操作，通过调用对应的 Unsafe 实现
+     *
      * <em>Unsafe</em> operations that should <em>never</em> be called from user-code. These methods
      * are only provided to implement the actual transport, and must be invoked from an I/O thread except for the
      * following methods:

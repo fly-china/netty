@@ -181,12 +181,14 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
                 ChannelHandler handler = config.handler();
                 /**
                  * TODO 难道config的handler只能最多有一个？？？？
-                 *  此处这个获得的handler莫非是这个EchoServer中配置的全局LoggingHandler？
+                 *  此处这个获得的handler是这个EchoServer中配置的全局LoggingHandler
                  */
                 if (handler != null) {
                     pipeline.addLast(handler);
                 }
 
+                // 添加ServerBootstrapAcceptor到PipeLine中，
+                // 此时如果 Channel 并未注册到 EventLoop 中。如果调用 EventLoop#execute(Runnable runnable) 方法，会抛出 Exception in thread "main"
                 ch.eventLoop().execute(new Runnable() {
                     @Override
                     public void run() {
@@ -221,6 +223,7 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
         return new Map.Entry[size];
     }
 
+    // 是一个 ChannelHandler 实现类，用于接受客户端的连接请求
     private static class ServerBootstrapAcceptor extends ChannelInboundHandlerAdapter {
 
         private final EventLoopGroup childGroup;

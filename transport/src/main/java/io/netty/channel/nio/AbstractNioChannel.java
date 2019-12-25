@@ -383,15 +383,21 @@ public abstract class AbstractNioChannel extends AbstractChannel {
         boolean selected = false;
         for (;;) {
             try {
+                /**
+                 * 注册java原生的Channel对象到Selector对象上。
+                 * 但是为什么注册的感兴趣的事件是0呢？？？正常情况下，对于服务端来说，需要注册SelectionKey.OP_ACCEPT事件呢！
+                 */
                 selectionKey = javaChannel().register(eventLoop().unwrappedSelector(), 0, this);
                 return;
             } catch (CancelledKeyException e) {
                 if (!selected) {
+                    // 如果尚未selected，则强制选择器现在进行选择，因为canceled的SelectionKey可能仍然被缓存，不会被删除，因为还没有调用Select.select(..)操作。
                     // Force the Selector to select now as the "canceled" SelectionKey may still be
                     // cached and not removed because no Select.select(..) operation was called yet.
                     eventLoop().selectNow();
                     selected = true;
                 } else {
+                    // 我们之前在选择器上强制执行了select操作，但是无论什么原因，SelectionKey仍然被缓存。JDK的bug吗?
                     // We forced a select operation on the selector before but the SelectionKey is still cached
                     // for whatever reason. JDK bug ?
                     throw e;

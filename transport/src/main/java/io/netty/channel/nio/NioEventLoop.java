@@ -740,7 +740,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
             selector.wakeup();
         }
     }
-
+    // 返回Java原生NIO Selector对象。每个 NioEventLoop 对象上，都独有一个 Selector 对象
     Selector unwrappedSelector() {
         return unwrappedSelector;
     }
