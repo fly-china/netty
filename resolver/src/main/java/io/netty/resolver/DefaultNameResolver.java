@@ -27,6 +27,9 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
+ * InetNameResolver是一个使用使用JDK内置的域名查找、解析机制。
+ * 请注意，此解析器从调用方线程执行阻塞名称查找。
+ *
  * A {@link InetNameResolver} that resolves using JDK's built-in domain name lookup mechanism.
  * Note that this resolver performs a blocking name lookup from the caller thread.
  */
