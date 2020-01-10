@@ -172,6 +172,12 @@ public class Bootstrap extends AbstractBootstrap<Bootstrap, Channel> {
         final ChannelFuture regFuture = initAndRegister();
         final Channel channel = regFuture.channel();
 
+        try{
+            Thread.sleep(1000);
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+
         if (regFuture.isDone()) {
             if (!regFuture.isSuccess()) { // 失败时，直接返回
                 return regFuture;

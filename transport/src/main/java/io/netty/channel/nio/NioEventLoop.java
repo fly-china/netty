@@ -639,6 +639,8 @@ public final class NioEventLoop extends SingleThreadEventLoop {
                 // to close ch.
                 return;
             }
+            // 只有当channel仍然注册到这个 EventLoop 时才关闭channel。channel可能已经从event loop中注销，因此SelectionKey可以作为注销过程的一部分而取消。
+            // 但是channel仍然是健康的，而且不应该关闭。
             // Only close ch if ch is still registered to this EventLoop. ch could have deregistered from the event loop
             // and thus the SelectionKey could be cancelled as part of the deregistration process, but the channel is
             // still healthy and should not be closed.
@@ -653,6 +655,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
 
         try {
             int readyOps = k.readyOps();
+            // 我们首先需要调用finishConnect()，然后尝试触发read(…)或write(…)，否则NIO JDK Channel实现可能会抛出NotYetConnectedException。
             // We first need to call finishConnect() before try to trigger a read(...) or write(...) as otherwise
             // the NIO JDK channel implementation may throw a NotYetConnectedException.
             if ((readyOps & SelectionKey.OP_CONNECT) != 0) {

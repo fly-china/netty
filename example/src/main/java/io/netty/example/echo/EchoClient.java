@@ -16,11 +16,7 @@
 package io.netty.example.echo;
 
 import io.netty.bootstrap.Bootstrap;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.ChannelOption;
-import io.netty.channel.ChannelPipeline;
-import io.netty.channel.EventLoopGroup;
+import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
@@ -76,11 +72,17 @@ public final class EchoClient {
              });
 
             // Start the client. 连接指定ip+端口，启动客户端，并同步等待成功
-            ChannelFuture f = b.connect(HOST, PORT).sync();
+//            ChannelFuture f = b.connect(HOST, PORT).sync();
+            ChannelFuture channelFuture = b.connect(HOST, PORT).addListener(new ChannelFutureListener() {
+                @Override
+                public void operationComplete(ChannelFuture future) throws Exception {
+                    System.out.println("连接完成");
+                }
+            });
 
             // Wait until the connection is closed.
             // 监听服务端关闭，并阻塞等待
-            f.channel().closeFuture().sync();
+            channelFuture.channel().closeFuture().sync();
         } finally {
             // Shut down the event loop to terminate all threads.
             group.shutdownGracefully();
