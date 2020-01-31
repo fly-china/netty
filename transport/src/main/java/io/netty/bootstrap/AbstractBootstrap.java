@@ -359,8 +359,10 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         ChannelFuture regFuture = config().group().register(channel);
         if (regFuture.cause() != null) {
             if (channel.isRegistered()) {
+                // 已完成注册的channel使用close()方法，正常关闭channel。因为关闭完成后会触发通知，使用ChannelFuture接受
                 channel.close();
             } else {
+                // 未注册成功的channel，强行关闭
                 channel.unsafe().closeForcibly();
             }
         }
