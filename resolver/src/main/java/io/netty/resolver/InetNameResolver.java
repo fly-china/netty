@@ -38,6 +38,9 @@ public abstract class InetNameResolver extends SimpleNameResolver<InetAddress> {
     }
 
     /**
+     * 返回一个AddressResolver，它将在下面使用这个名称解析器。
+     * 它在内部缓存，所以总是返回相同的实例。（单例模式）
+     *
      * Return a {@link AddressResolver} that will use this name resolver underneath.
      * It's cached internally, so the same instance is always returned.
      */

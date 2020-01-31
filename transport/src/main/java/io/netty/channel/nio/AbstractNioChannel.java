@@ -66,10 +66,12 @@ public abstract class AbstractNioChannel extends AbstractChannel {
     };
 
     /**
+     * 当前尝试connect的future对象。如果它不为null，随后的connect尝试将会失败。因为必须同时只有一个连接，或同时只有一个线程去尝试connect
      * The future of the current connection attempt.  If not null, subsequent
      * connection attempts will fail.
      */
     private ChannelPromise connectPromise;
+    // 连接超时监听 ScheduledFuture 对象
     private ScheduledFuture<?> connectTimeoutFuture;
     private SocketAddress requestedRemoteAddress;
 
@@ -245,19 +247,24 @@ public abstract class AbstractNioChannel extends AbstractChannel {
             }
 
             try {
+                // connectPromise不为空，说明已经有一个线程去connect了。所以要抛异常，返回失败
                 if (connectPromise != null) {
                     // Already a connect in process.
                     throw new ConnectionPendingException();
                 }
 
                 boolean wasActive = isActive();
+
+                // 执行连接远程地址
                 if (doConnect(remoteAddress, localAddress)) {
                     fulfillConnectPromise(promise, wasActive);
                 } else {
+                    // 记录 connectPromise 和 requestedRemoteAddress
                     connectPromise = promise;
                     requestedRemoteAddress = remoteAddress;
 
-                    // Schedule connect timeout.
+                    // 使用EventLoop发起定时schedule任务，监听connect超时。若连接超时，则回调通知 connectPromise 超时异常。
+                    // Schedule connect timeout. 默认：30000毫秒
                     int connectTimeoutMillis = config().getConnectTimeoutMillis();
                     if (connectTimeoutMillis > 0) {
                         connectTimeoutFuture = eventLoop().schedule(new Runnable() {
@@ -273,6 +280,7 @@ public abstract class AbstractNioChannel extends AbstractChannel {
                         }, connectTimeoutMillis, TimeUnit.MILLISECONDS);
                     }
 
+                    // 添加监听器，监听连接远程地址取消。
                     promise.addListener(new ChannelFutureListener() {
                         @Override
                         public void operationComplete(ChannelFuture future) throws Exception {
@@ -330,18 +338,24 @@ public abstract class AbstractNioChannel extends AbstractChannel {
 
         @Override
         public final void finishConnect() {
+            // 注意:此方法只能被event loop线程调用，并且仅当connect尝试既没被取消也没超时的情况。
             // Note this method is invoked by the event loop only if the connection attempt was
             // neither cancelled nor timed out.
 
             assert eventLoop().inEventLoop();
 
             try {
+                // 判断此channel是否被激活
                 boolean wasActive = isActive();
+                // 执行完成连接
                 doFinishConnect();
+                // 通知 connectPromise 连接完成
                 fulfillConnectPromise(connectPromise, wasActive);
             } catch (Throwable t) {
+                // 通知 connectPromise 连接异常
                 fulfillConnectPromise(connectPromise, annotateConnectException(t, requestedRemoteAddress));
             } finally {
+                // 置空 超时connectTimeoutFuture通知回调  和  连接connectPromise通知回调
                 // Check for null as the connectTimeoutFuture is only created if a connectTimeoutMillis > 0 is used
                 // See https://github.com/netty/netty/issues/1770
                 if (connectTimeoutFuture != null) {
@@ -383,15 +397,21 @@ public abstract class AbstractNioChannel extends AbstractChannel {
         boolean selected = false;
         for (;;) {
             try {
+                /**
+                 * 注册java原生的Channel对象到Selector对象上。
+                 * 但是为什么注册的感兴趣的事件是0呢？？？正常情况下，对于服务端来说，需要注册SelectionKey.OP_ACCEPT事件呢！
+                 */
                 selectionKey = javaChannel().register(eventLoop().unwrappedSelector(), 0, this);
                 return;
             } catch (CancelledKeyException e) {
                 if (!selected) {
+                    // 如果尚未selected，则强制选择器现在进行选择，因为canceled的SelectionKey可能仍然被缓存，不会被删除，因为还没有调用Select.select(..)操作。
                     // Force the Selector to select now as the "canceled" SelectionKey may still be
                     // cached and not removed because no Select.select(..) operation was called yet.
                     eventLoop().selectNow();
                     selected = true;
                 } else {
+                    // 我们之前在选择器上强制执行了select操作，但是无论什么原因，SelectionKey仍然被缓存。JDK的bug吗?
                     // We forced a select operation on the selector before but the SelectionKey is still cached
                     // for whatever reason. JDK bug ?
                     throw e;

@@ -50,13 +50,17 @@ public class Bootstrap extends AbstractBootstrap<Bootstrap, Channel> {
 
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(Bootstrap.class);
 
+    // 默认地址解析器对象
     private static final AddressResolverGroup<?> DEFAULT_RESOLVER = DefaultAddressResolverGroup.INSTANCE;
 
+    // 启动类配置对象
     private final BootstrapConfig config = new BootstrapConfig(this);
 
     @SuppressWarnings("unchecked")
     private volatile AddressResolverGroup<SocketAddress> resolver =
             (AddressResolverGroup<SocketAddress>) DEFAULT_RESOLVER;
+
+    // 连接地址
     private volatile SocketAddress remoteAddress;
 
     public Bootstrap() { }
@@ -157,18 +161,31 @@ public class Bootstrap extends AbstractBootstrap<Bootstrap, Channel> {
     }
 
     /**
+     * 地址解析 和 connect()连接
+     * 和AbstractBootstrap#doBind(java.net.SocketAddress)方法内部处理逻辑类似，
+     *  doBind内部调doBind0()方法，doResolveAndConnect内部调用doResolveAndConnect0()方法
+     *
      * @see #connect()
      */
     private ChannelFuture doResolveAndConnect(final SocketAddress remoteAddress, final SocketAddress localAddress) {
+        // 初始化并注册一个 Channel 对象，因为注册是异步的过程，所以返回一个 ChannelFuture 对象。
         final ChannelFuture regFuture = initAndRegister();
         final Channel channel = regFuture.channel();
 
+        try{
+            Thread.sleep(1000);
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+
         if (regFuture.isDone()) {
-            if (!regFuture.isSuccess()) {
+            if (!regFuture.isSuccess()) { // 失败时，直接返回
                 return regFuture;
             }
             return doResolveAndConnect0(channel, remoteAddress, localAddress, channel.newPromise());
         } else {
+            // 异步注册Channel未完成时，通过addListener的方式，异步注册Channel完成后，回调operationComplete方法进行核心doResolveAndConnect0()操作
+            // 注册回调几乎总是已经完成，但是为了以防万一
             // Registration future is almost always fulfilled already, but just in case it's not.
             final PendingRegistrationPromise promise = new PendingRegistrationPromise(channel);
             regFuture.addListener(new ChannelFutureListener() {
@@ -193,6 +210,9 @@ public class Bootstrap extends AbstractBootstrap<Bootstrap, Channel> {
         }
     }
 
+    /**
+     * 地址解析 和 connect 的核心操作
+     */
     private ChannelFuture doResolveAndConnect0(final Channel channel, SocketAddress remoteAddress,
                                                final SocketAddress localAddress, final ChannelPromise promise) {
         try {
@@ -201,6 +221,7 @@ public class Bootstrap extends AbstractBootstrap<Bootstrap, Channel> {
 
             if (!resolver.isSupported(remoteAddress) || resolver.isResolved(remoteAddress)) {
                 // Resolver has no idea about what to do with the specified remote address or it's resolved already.
+                // 暂时不支持解析或已解析成功，则执行doConnect()
                 doConnect(remoteAddress, localAddress, promise);
                 return promise;
             }
@@ -210,11 +231,11 @@ public class Bootstrap extends AbstractBootstrap<Bootstrap, Channel> {
             if (resolveFuture.isDone()) {
                 final Throwable resolveFailureCause = resolveFuture.cause();
 
-                if (resolveFailureCause != null) {
+                if (resolveFailureCause != null) { // 地址解析失败，关闭 Channel ，并回调通知 promise 异常
                     // Failed to resolve immediately
                     channel.close();
                     promise.setFailure(resolveFailureCause);
-                } else {
+                } else { // 地址解析成功，执行doConnect()
                     // Succeeded to resolve immediately; cached? (or did a blocking lookup)
                     doConnect(resolveFuture.getNow(), localAddress, promise);
                 }
@@ -225,10 +246,10 @@ public class Bootstrap extends AbstractBootstrap<Bootstrap, Channel> {
             resolveFuture.addListener(new FutureListener<SocketAddress>() {
                 @Override
                 public void operationComplete(Future<SocketAddress> future) throws Exception {
-                    if (future.cause() != null) {
+                    if (future.cause() != null) {  // 解析地址失败，关闭 Channel ，并回调通知 promise 异常
                         channel.close();
                         promise.setFailure(future.cause());
-                    } else {
+                    } else {// 地址解析成功，执行doConnect()
                         doConnect(future.getNow(), localAddress, promise);
                     }
                 }

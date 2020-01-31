@@ -16,14 +16,11 @@
 package io.netty.example.echo;
 
 import io.netty.bootstrap.Bootstrap;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.ChannelOption;
-import io.netty.channel.ChannelPipeline;
-import io.netty.channel.EventLoopGroup;
+import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
+import io.netty.channel.socket.oio.OioSocketChannel;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
@@ -43,6 +40,7 @@ public final class EchoClient {
 
     public static void main(String[] args) throws Exception {
         // Configure SSL.git
+        // 配置SSL，https、wss的使用
         final SslContext sslCtx;
         if (SSL) {
             sslCtx = SslContextBuilder.forClient()
@@ -52,12 +50,14 @@ public final class EchoClient {
         }
 
         // Configure the client.
+        // 创建线程组
         EventLoopGroup group = new NioEventLoopGroup();
         try {
+            // 创建Client端的启动引导程序
             Bootstrap b = new Bootstrap();
-            b.group(group)
-             .channel(NioSocketChannel.class)
-             .option(ChannelOption.TCP_NODELAY, true)
+            b.group(group)  // 配置声明的线程组
+             .channel(NioSocketChannel.class)// 指定配置Client端SocketChannel的类型
+             .option(ChannelOption.TCP_NODELAY, true) // 配置Channel相关的option属性。本处为TCP的Nagle算法。启动TCP_NODELAY，无延时，小数据也会立即传输，就意味着禁用了Nagle算法
              .handler(new ChannelInitializer<SocketChannel>() {
                  @Override
                  public void initChannel(SocketChannel ch) throws Exception {
@@ -66,18 +66,34 @@ public final class EchoClient {
                          p.addLast(sslCtx.newHandler(ch.alloc(), HOST, PORT));
                      }
                      //p.addLast(new LoggingHandler(LogLevel.INFO));
+                     // 在pipeLine中添加客户端处理Handler
                      p.addLast(new EchoClientHandler());
                  }
              });
 
-            // Start the client.
-            ChannelFuture f = b.connect(HOST, PORT).sync();
+            // Start the client. 连接指定ip+端口，启动客户端，并同步等待成功
+//            ChannelFuture f = b.connect(HOST, PORT).sync();
+            ChannelFuture channelFuture = b.connect(HOST, PORT).addListener(new ChannelFutureListener() {
+                @Override
+                public void operationComplete(ChannelFuture future) throws Exception {
+                    System.out.println("连接完成");
+                }
+            });
 
             // Wait until the connection is closed.
-            f.channel().closeFuture().sync();
+            // 监听服务端关闭，并阻塞等待
+            channelFuture.channel().closeFuture().sync();
         } finally {
             // Shut down the event loop to terminate all threads.
             group.shutdownGracefully();
         }
     }
+
+
+    /**
+     * Nagle算法就是为了尽可能发送大块数据，避免网络中充斥着许多小数据块。
+     * Nagle算法的基本定义是任意时刻，最多只能有一个未被确认的小段,
+     *      - 所谓“小段”，指的是小于MSS尺寸的数据块，
+     *      - 所谓“未被确认”，是指一个数据块发送出去后，没有收到对方发送的ACK确认该数据已收到。
+     */
 }

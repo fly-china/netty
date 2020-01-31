@@ -40,6 +40,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 /**
+ * ChannelPipeline的默认实现。它通常是伴随着Channel的具体实现创建Channel时，而创建ChannelPipeline
  * The default {@link ChannelPipeline} implementation.  It is usually created
  * by a {@link Channel} implementation when the {@link Channel} is created.
  */
@@ -74,9 +75,11 @@ public class DefaultChannelPipeline implements ChannelPipeline {
     private boolean firstRegistration = true;
 
     /**
+     * 这是一个由callHandlerAddedForAllHandlers()处理的链表的头部，因此处理所有的未处理的callHandlerAdded0(ctx)
      * This is the head of a linked list that is processed by {@link #callHandlerAddedForAllHandlers()} and so process
      * all the pending {@link #callHandlerAdded0(AbstractChannelHandlerContext)}.
      *
+     * 只保留head节点，因为使用整个列表是比较低频的，这样它的大小会很小。因此，执行insert的完整迭代被认为是节省内存和尾部管理复杂性的一个很好的折衷方案。
      * We only keep the head because it is expected that the list is used infrequently and its size is small.
      * Thus full iterations to do insertions is assumed to be a good compromised to saving memory and tail management
      * complexity.
@@ -84,6 +87,7 @@ public class DefaultChannelPipeline implements ChannelPipeline {
     private PendingHandlerCallback pendingHandlerCallbackHead;
 
     /**
+     * 当AbstractChannel注册后设置为true。一旦设置为true，将永远不会在变
      * Set to {@code true} once the {@link AbstractChannel} is registered.Once set to {@code true} the value will never
      * change.
      */
@@ -646,6 +650,7 @@ public class DefaultChannelPipeline implements ChannelPipeline {
         assert channel.eventLoop().inEventLoop();
         if (firstRegistration) {
             firstRegistration = false;
+            // 我们现在将Channel注册到了EventLoop。是时候调用所有的ChannelHandlers的回调了，它们在注册完成前已经被添加
             // We are now registered to the EventLoop. It's time to call the callbacks for the ChannelHandlers,
             // that were added before the registration was done.
             callHandlerAddedForAllHandlers();
@@ -1114,16 +1119,19 @@ public class DefaultChannelPipeline implements ChannelPipeline {
             registered = true;
 
             pendingHandlerCallbackHead = this.pendingHandlerCallbackHead;
-            // Null out so it can be GC'ed.
+            // Null out so it can be GC'ed. 协助GC
             this.pendingHandlerCallbackHead = null;
         }
 
+        // 下面的操作必须放在synchronized同步代码块外，否则handlerAdded()持有锁并尝试从EventLoop之外添加另外一个handler时，可能会引发死锁
         // This must happen outside of the synchronized(...) block as otherwise handlerAdded(...) may be called while
         // holding the lock and so produce a deadlock if handlerAdded(...) will try to add another handler from outside
         // the EventLoop.
         PendingHandlerCallback task = pendingHandlerCallbackHead;
         while (task != null) {
             task.execute();
+            // 将游标移动到下一个节点，开始遍历
+            // TODO: PendingHandlerCallback类中没有对next的赋值，什么时候给next赋值过？？？
             task = task.next;
         }
     }
