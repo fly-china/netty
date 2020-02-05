@@ -65,6 +65,7 @@ public abstract class AbstractEventExecutorGroup implements EventExecutorGroup {
         return next().scheduleWithFixedDelay(command, initialDelay, delay, unit);
     }
 
+    // shutdownGracefully(2, 15, 秒)
     @Override
     public Future<?> shutdownGracefully() {
         return shutdownGracefully(DEFAULT_SHUTDOWN_QUIET_PERIOD, DEFAULT_SHUTDOWN_TIMEOUT, TimeUnit.SECONDS);
@@ -93,12 +94,15 @@ public abstract class AbstractEventExecutorGroup implements EventExecutorGroup {
         return next().invokeAll(tasks);
     }
 
+    // 实现于ExecutorService接口，在 EventExecutor 中执行多个普通任务
     @Override
     public <T> List<java.util.concurrent.Future<T>> invokeAll(
             Collection<? extends Callable<T>> tasks, long timeout, TimeUnit unit) throws InterruptedException {
         return next().invokeAll(tasks, timeout, unit);
     }
 
+    // 实现于ExecutorService接口，在 EventExecutor 中执行多个普通任务，有一个执行完成即可。
+    // 在正常返回（一个任务被完成了）或异常返回时，其他未完成的任务将被取消
     @Override
     public <T> T invokeAny(Collection<? extends Callable<T>> tasks) throws InterruptedException, ExecutionException {
         return next().invokeAny(tasks);
