@@ -19,6 +19,7 @@ package io.netty.channel;
 import io.netty.util.concurrent.AbstractEventExecutor;
 
 /**
+ * EventLoop接口的骨骼实现
  * Skeletal implementation of {@link EventLoop}.
  */
 public abstract class AbstractEventLoop extends AbstractEventExecutor implements EventLoop {

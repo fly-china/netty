@@ -18,7 +18,7 @@ package io.netty.channel;
 import io.netty.util.concurrent.EventExecutorGroup;
 
 /**
- * 特殊的{EventExecutorGroup，允许注册Channels获取，以便在事件循环期间进行后续选择。
+ * 特殊的EventExecutorGroup，允许注册Channels获取，以便在事件循环期间进行后续选择。
  *
  * Special {@link EventExecutorGroup} which allows registering {@link Channel}s that get
  * processed for later selection during the event loop.
@@ -32,6 +32,7 @@ public interface EventLoopGroup extends EventExecutorGroup {
     EventLoop next();
 
     /**
+     * 注册Channel到EventLoopGroup中的一个EventLoop上。
      * Register a {@link Channel} with this {@link EventLoop}. The returned {@link ChannelFuture}
      * will get notified once the registration was complete.
      */

@@ -30,6 +30,7 @@ final class ScheduledFutureTask<V> extends PromiseTask<V> implements ScheduledFu
     private static final AtomicLong nextTaskId = new AtomicLong();
     private static final long START_TIME = System.nanoTime();
 
+    // 返回距离当前，已经过去了多长时间段
     static long nanoTime() {
         return System.nanoTime() - START_TIME;
     }
@@ -84,6 +85,7 @@ final class ScheduledFutureTask<V> extends PromiseTask<V> implements ScheduledFu
         return deadlineNanos;
     }
 
+    // deadline时间长度 - 已流失的时间 = 剩余多长时间
     public long delayNanos() {
         return Math.max(0, deadlineNanos() - nanoTime());
     }

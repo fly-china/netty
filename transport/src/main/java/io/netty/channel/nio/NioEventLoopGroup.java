@@ -31,9 +31,17 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadFactory;
 
 /**
+ * 多线程EventLoopGroup（MultithreadEventLoopGroup）的实现，用于基于Channel的Nio Selector
  * {@link MultithreadEventLoopGroup} implementations which is used for NIO {@link Selector} based {@link Channel}s.
  */
 public class NioEventLoopGroup extends MultithreadEventLoopGroup {
+
+    /**
+     * 构造方法比较多，主要是明确了父构造方法的 Object ... args 方法参数：
+     *   final SelectorProvider  : 用于创建 Java NIO Selector 对象。
+     *   final SelectStrategyFactory : 选择策略工厂
+     *   final RejectedExecutionHandler : 拒绝执行处理器
+     */
 
     /**
      * Create a new instance using the default number of threads, the default {@link ThreadFactory} and
@@ -102,6 +110,7 @@ public class NioEventLoopGroup extends MultithreadEventLoopGroup {
     }
 
     /**
+     * 设置在自循环时间组中IO所需时间的百分比。默认是50%，即在事件循环中IO任务和非IO任务，尽可能的分配各自50%的时间。
      * Sets the percentage of the desired amount of time spent for I/O in the child event loops.  The default value is
      * {@code 50}, which means the event loop will try to spend the same amount of time for I/O as for non-I/O tasks.
      */
@@ -112,6 +121,7 @@ public class NioEventLoopGroup extends MultithreadEventLoopGroup {
     }
 
     /**
+     * 重新构建 Selector 来替换掉当前的子事件循环的 Selector。来解决 臭名昭著的JDK的epoll 100% CPU 的bug。
      * Replaces the current {@link Selector}s of the child event loops with newly created {@link Selector}s to work
      * around the  infamous epoll 100% CPU bug.
      */
@@ -121,6 +131,9 @@ public class NioEventLoopGroup extends MultithreadEventLoopGroup {
         }
     }
 
+    /**
+     * 覆盖父类的newChild方法
+     */
     @Override
     protected EventLoop newChild(Executor executor, Object... args) throws Exception {
         return new NioEventLoop(this, executor, (SelectorProvider) args[0],
