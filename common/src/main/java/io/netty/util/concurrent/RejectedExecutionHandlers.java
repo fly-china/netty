@@ -52,12 +52,14 @@ public final class RejectedExecutionHandlers {
         return new RejectedExecutionHandler() {
             @Override
             public void rejected(Runnable task, SingleThreadEventExecutor executor) {
+                // 非 EventLoop 线程中。如果在 EventLoop 线程中，就无法执行任务(因为EventLoop线程没有资源了，才会到此步)，这就导致完全无法重试了。
                 if (!executor.inEventLoop()) {
                     for (int i = 0; i < retries; i++) {
-                        // Try to wake up the executor so it will empty its task queue.
+                        // Try to wake up the executor so it will empty its task queue.尝试唤醒执行程序，使其清空任务队列。
                         executor.wakeup(false);
 
                         LockSupport.parkNanos(backOffNanos);
+                        // 经过阻塞等待，再次尝试将任务放回至taskQueue中
                         if (executor.offerTask(task)) {
                             return;
                         }
@@ -65,6 +67,7 @@ public final class RejectedExecutionHandlers {
                 }
                 // Either we tried to add the task from within the EventLoop or we was not able to add it even with
                 // backoff.
+                // 多次尝试添加失败，抛出 RejectedExecutionException 异常
                 throw new RejectedExecutionException();
             }
         };
