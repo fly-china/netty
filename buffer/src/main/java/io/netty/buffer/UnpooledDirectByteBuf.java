@@ -30,6 +30,7 @@ import java.nio.channels.GatheringByteChannel;
 import java.nio.channels.ScatteringByteChannel;
 
 /**
+ * 基于buffer的ByteBuffer。
  * A NIO {@link ByteBuffer} based buffer. It is recommended to use
  * {@link UnpooledByteBufAllocator#directBuffer(int, int)}, {@link Unpooled#directBuffer(int)} and
  * {@link Unpooled#wrappedBuffer(ByteBuffer)} instead of calling the constructor explicitly.
@@ -62,10 +63,12 @@ public class UnpooledDirectByteBuf extends AbstractReferenceCountedByteBuf {
         }
 
         this.alloc = alloc;
+        // 创建并设置ByteBuffer对象，
         setByteBuffer(allocateDirect(initialCapacity));
     }
 
     /**
+     * 创建新的direct buffer，并包装指定的ByteBuffer
      * Creates a new direct buffer by wrapping the specified initial buffer.
      *
      * @param maxCapacity the maximum capacity of the underlying direct buffer
@@ -78,13 +81,14 @@ public class UnpooledDirectByteBuf extends AbstractReferenceCountedByteBuf {
         if (initialBuffer == null) {
             throw new NullPointerException("initialBuffer");
         }
-        if (!initialBuffer.isDirect()) {
+        if (!initialBuffer.isDirect()) {// 必须是 Direct
             throw new IllegalArgumentException("initialBuffer is not a direct buffer.");
         }
-        if (initialBuffer.isReadOnly()) {
+        if (initialBuffer.isReadOnly()) {// 必须是可写
             throw new IllegalArgumentException("initialBuffer is a read-only buffer.");
         }
 
+        // 获得剩余可读字节数，作为初始容量大小（limit - position）
         int initialCapacity = initialBuffer.remaining();
         if (initialCapacity > maxCapacity) {
             throw new IllegalArgumentException(String.format(
@@ -92,12 +96,16 @@ public class UnpooledDirectByteBuf extends AbstractReferenceCountedByteBuf {
         }
 
         this.alloc = alloc;
+        // 标记为true 。因为 initialBuffer 是从外部传递进来，释放的工作，不交给当前 UnpooledDirectByteBuf 对象。
         doNotFree = true;
+        // 将传入ByteBuffer的remaining部分内容，设置到ByteBuffer
         setByteBuffer(initialBuffer.slice().order(ByteOrder.BIG_ENDIAN));
+        // 已有数据，设置写索引
         writerIndex(initialCapacity);
     }
 
     /**
+     * 分配直接内存
      * Allocate a new direct {@link ByteBuffer} with the given initialCapacity.
      */
     protected ByteBuffer allocateDirect(int initialCapacity) {
@@ -111,6 +119,7 @@ public class UnpooledDirectByteBuf extends AbstractReferenceCountedByteBuf {
         PlatformDependent.freeDirectBuffer(buffer);
     }
 
+    // 释放旧的this.buffer，分配新的buffer
     private void setByteBuffer(ByteBuffer buffer) {
         ByteBuffer oldBuffer = this.buffer;
         if (oldBuffer != null) {
@@ -146,11 +155,12 @@ public class UnpooledDirectByteBuf extends AbstractReferenceCountedByteBuf {
         int oldCapacity = capacity;
         if (newCapacity > oldCapacity) {
             ByteBuffer oldBuffer = buffer;
+            // 分配新空间创建的ByteBuffer，并将老ByteBuffer数据拷贝且释放
             ByteBuffer newBuffer = allocateDirect(newCapacity);
             oldBuffer.position(0).limit(oldBuffer.capacity());
             newBuffer.position(0).limit(oldBuffer.capacity());
             newBuffer.put(oldBuffer);
-            newBuffer.clear();
+            newBuffer.clear();// position=0;limit = capacity;mark = -1;
             setByteBuffer(newBuffer);
         } else if (newCapacity < oldCapacity) {
             ByteBuffer oldBuffer = buffer;
@@ -165,6 +175,7 @@ public class UnpooledDirectByteBuf extends AbstractReferenceCountedByteBuf {
                 newBuffer.clear();
             } else {
                 setIndex(newCapacity, newCapacity);
+                // 这里要注意下，老的数据oldBuffer，相当于不进行复制，因为已经读取完了。
             }
             setByteBuffer(newBuffer);
         }
@@ -638,6 +649,7 @@ public class UnpooledDirectByteBuf extends AbstractReferenceCountedByteBuf {
         return ((ByteBuffer) buffer.duplicate().position(index).limit(index + length)).slice();
     }
 
+    // 当引用计数为 0 时，调用该方法，进行内存回收。AbstractReferenceCountedByteBuf中定义的抽象方法
     @Override
     protected void deallocate() {
         ByteBuffer buffer = this.buffer;
@@ -646,7 +658,7 @@ public class UnpooledDirectByteBuf extends AbstractReferenceCountedByteBuf {
         }
 
         this.buffer = null;
-
+        // 释放 buffer 对象
         if (!doNotFree) {
             freeDirect(buffer);
         }

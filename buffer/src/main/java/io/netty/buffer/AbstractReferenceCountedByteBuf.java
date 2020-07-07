@@ -28,6 +28,9 @@ import static io.netty.util.internal.ObjectUtil.checkPositive;
  */
 public abstract class AbstractReferenceCountedByteBuf extends AbstractByteBuf {
     private static final long REFCNT_FIELD_OFFSET;
+
+    // refCnt引用计数的更新器
+    // 为什么不直接用 AtomicInteger ？因为 ByteBuf 对象很多，如果都把 int 包一层 AtomicInteger 花销较大，而AtomicIntegerFieldUpdater 只需要一个全局的静态变量
     private static final AtomicIntegerFieldUpdater<AbstractReferenceCountedByteBuf> refCntUpdater =
             AtomicIntegerFieldUpdater.newUpdater(AbstractReferenceCountedByteBuf.class, "refCnt");
 
@@ -87,6 +90,7 @@ public abstract class AbstractReferenceCountedByteBuf extends AbstractByteBuf {
         return retain0(1);
     }
 
+    // 实现ReferenceCounted接口中的方法。引用计数+n
     @Override
     public ByteBuf retain(int increment) {
         return retain0(checkPositive(increment, "increment"));
@@ -99,7 +103,7 @@ public abstract class AbstractReferenceCountedByteBuf extends AbstractByteBuf {
         if ((oldRef & 1) != 0) {
             throw new IllegalReferenceCountException(0, increment);
         }
-        // don't pass 0!
+        // don't pass 0! 加回去，负负得正。
         if ((oldRef <= 0 && oldRef + adjustedIncrement >= 0)
                 || (oldRef >= 0 && oldRef + adjustedIncrement < oldRef)) {
             // overflow case
@@ -132,6 +136,7 @@ public abstract class AbstractReferenceCountedByteBuf extends AbstractByteBuf {
     private boolean release0(int decrement) {
         int rawCnt = nonVolatileRawCnt(), realCnt = toLiveRealCnt(rawCnt, decrement);
         if (decrement == realCnt) {
+            // 原有 realCnt 等于减少的值,释放掉
             if (refCntUpdater.compareAndSet(this, rawCnt, 1)) {
                 deallocate();
                 return true;
@@ -150,6 +155,7 @@ public abstract class AbstractReferenceCountedByteBuf extends AbstractByteBuf {
         return retryRelease0(decrement);
     }
 
+    // 重试
     private boolean retryRelease0(int decrement) {
         for (;;) {
             int rawCnt = refCntUpdater.get(this), realCnt = toLiveRealCnt(rawCnt, decrement);
@@ -182,6 +188,7 @@ public abstract class AbstractReferenceCountedByteBuf extends AbstractByteBuf {
     }
 
     /**
+     * 当引用计数为 0 时，调用该方法，进行内存回收
      * Called once {@link #refCnt()} is equals 0.
      */
     protected abstract void deallocate();

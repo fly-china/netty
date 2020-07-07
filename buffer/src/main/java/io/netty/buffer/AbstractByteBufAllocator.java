@@ -24,6 +24,7 @@ import io.netty.util.internal.PlatformDependent;
 import io.netty.util.internal.StringUtil;
 
 /**
+ * ByteBufAllocator的骨骼实现，以方便扩展（使用模板方法）
  * Skeletal {@link ByteBufAllocator} implementation to extend.
  */
 public abstract class AbstractByteBufAllocator implements ByteBufAllocator {

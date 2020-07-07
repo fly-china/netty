@@ -30,12 +30,14 @@ import java.nio.charset.Charset;
 import java.nio.charset.UnsupportedCharsetException;
 
 /**
+ * 零个或多个字节(8位)的随机、顺序可访问序列。此抽象类提供了原始byte[]数组和原始NIO的ByteBuffer操作的抽象方法
  * A random and sequential accessible sequence of zero or more bytes (octets).
- * This interface provides an abstract view for one or more primitive byte
+ * This abstract class provides an abstract view for one or more primitive byte
  * arrays ({@code byte[]}) and {@linkplain ByteBuffer NIO buffers}.
  *
  * <h3>Creation of a buffer</h3>
  *
+ * 推荐使用Unpooled类来创建buffer，而避免使用个人实现的构造方法
  * It is recommended to create a new buffer using the helper methods in
  * {@link Unpooled} rather than calling an individual implementation's
  * constructor.
@@ -63,6 +65,7 @@ import java.nio.charset.UnsupportedCharsetException;
  * operation and {@link #writerIndex() writerIndex} for a write operation
  * respectively.  The following diagram shows how a buffer is segmented into
  * three areas by the two pointers:
+ * 下图显示了缓冲区是如何通过两个指针分割成三个区域的:
  *
  * <pre>
  *      +-------------------+------------------+------------------+
@@ -192,8 +195,9 @@ import java.nio.charset.UnsupportedCharsetException;
  * the mark and reset methods in {@link InputStream} except that there's no
  * {@code readlimit}.
  *
- * <h3>Derived buffers</h3>
+ * <h3>Derived buffers</h3>衍生出的buffer操作
  *
+ * 通过下面方法创建现有缓冲区的视图。视图意味着：现有buffer中内容变化，更影响衍生出的buffer
  * You can create a view of an existing buffer by calling one of the following methods:
  * <ul>
  *   <li>{@link #duplicate()}</li>
@@ -211,6 +215,7 @@ import java.nio.charset.UnsupportedCharsetException;
  * <p>
  * In case a completely fresh copy of an existing buffer is required, please
  * call {@link #copy()} method instead.
+ * 如果想对现有buffer进行全新的复制，请使用copy()方法
  *
  * <h4>Non-retained and retained derived buffers</h4>
  *
@@ -270,6 +275,7 @@ public abstract class ByteBuf implements ReferenceCounted, Comparable<ByteBuf> {
     public abstract int maxCapacity();
 
     /**
+     * 分配器，用于创建 ByteBuf 对象。
      * Returns the {@link ByteBufAllocator} which created this buffer.
      */
     public abstract ByteBufAllocator alloc();
@@ -359,7 +365,7 @@ public abstract class ByteBuf implements ReferenceCounted, Comparable<ByteBuf> {
      *
      * <pre>
      * // Create a buffer whose readerIndex, writerIndex and capacity are
-     * // 0, 0 and 8 respectively.
+     * // 0, 0 and 8 respectively. respectively=分别
      * {@link ByteBuf} buf = {@link Unpooled}.buffer(8);
      *
      * // IndexOutOfBoundsException is thrown because the specified
@@ -448,6 +454,7 @@ public abstract class ByteBuf implements ReferenceCounted, Comparable<ByteBuf> {
     public abstract boolean isWritable(int size);
 
     /**
+     * 设置readerIndex=writerIndex=0，但是数据还存在
      * Sets the {@code readerIndex} and {@code writerIndex} of this buffer to
      * {@code 0}.
      * This method is identical to {@link #setIndex(int, int) setIndex(0, 0)}.
@@ -495,6 +502,7 @@ public abstract class ByteBuf implements ReferenceCounted, Comparable<ByteBuf> {
     public abstract ByteBuf resetWriterIndex();
 
     /**
+     * 释放【所有的】废弃段的空间内存
      * Discards the bytes between the 0th index and {@code readerIndex}.
      * It moves the bytes between {@code readerIndex} and {@code writerIndex}
      * to the 0th index, and sets {@code readerIndex} and {@code writerIndex}
@@ -505,6 +513,7 @@ public abstract class ByteBuf implements ReferenceCounted, Comparable<ByteBuf> {
     public abstract ByteBuf discardReadBytes();
 
     /**
+     * 释放【部分的】废弃段的空间内存。
      * Similar to {@link ByteBuf#discardReadBytes()} except that this method might discard
      * some, all, or none of read bytes depending on its internal implementation to reduce
      * overall memory bandwidth consumption at the cost of potentially additional memory
@@ -1229,6 +1238,7 @@ public abstract class ByteBuf implements ReferenceCounted, Comparable<ByteBuf> {
     public abstract ByteBuf setBytes(int index, byte[] src);
 
     /**
+     * 将指定源数组（src[]数组中从srcIndex开始，长度为length）的数据从指定的index开始传输到此缓冲区。
      * Transfers the specified source array's data to this buffer starting at
      * the specified absolute {@code index}.
      * This method does not modify {@code readerIndex} or {@code writerIndex} of
@@ -2335,6 +2345,7 @@ public abstract class ByteBuf implements ReferenceCounted, Comparable<ByteBuf> {
     public abstract ByteBuffer[] nioBuffers(int index, int length);
 
     /**
+     * 适用于 Heap 类型的 ByteBuf 对象的 byte[] 字节数组
      * Returns {@code true} if and only if this buffer has a backing byte array.
      * If this method returns true, you can safely call {@link #array()} and
      * {@link #arrayOffset()}.
@@ -2359,12 +2370,14 @@ public abstract class ByteBuf implements ReferenceCounted, Comparable<ByteBuf> {
     public abstract int arrayOffset();
 
     /**
+     * 当且仅当这个缓冲区有一个指向后备数据的低级内存地址的引用时，返回true
      * Returns {@code true} if and only if this buffer has a reference to the low-level memory address that points
      * to the backing data.
      */
     public abstract boolean hasMemoryAddress();
 
     /**
+     * 返回指向后备数据的第一个字节的低级内存地址。
      * Returns the low-level memory address that point to the first byte of ths backing data.
      *
      * @throws UnsupportedOperationException

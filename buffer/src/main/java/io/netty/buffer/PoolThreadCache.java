@@ -32,6 +32,7 @@ import java.util.Queue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
+ * 充当分配的线程缓存。该实现是在jemalloc和使用jemalloc的可伸缩内存分配技术之后进行模块化的
  * Acts a Thread cache for allocations. This implementation is moduled after
  * <a href="http://people.freebsd.org/~jasone/jemalloc/bsdcan2006/jemalloc.pdf">jemalloc</a> and the descripted
  * technics of

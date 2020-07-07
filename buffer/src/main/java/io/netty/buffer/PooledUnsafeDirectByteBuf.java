@@ -18,16 +18,22 @@ package io.netty.buffer;
 
 import io.netty.util.Recycler;
 import io.netty.util.internal.PlatformDependent;
+import sun.jvm.hotspot.runtime.Bytes;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.FileChannel;
 import java.nio.channels.GatheringByteChannel;
 import java.nio.channels.ScatteringByteChannel;
+import java.util.Arrays;
 
+/**
+ * 单例。同时final修饰，无法被继承
+ */
 final class PooledUnsafeDirectByteBuf extends PooledByteBuf<ByteBuffer> {
     private static final Recycler<PooledUnsafeDirectByteBuf> RECYCLER = new Recycler<PooledUnsafeDirectByteBuf>() {
         @Override
@@ -48,13 +54,16 @@ final class PooledUnsafeDirectByteBuf extends PooledByteBuf<ByteBuffer> {
         super(recyclerHandle, maxCapacity);
     }
 
+    // PooledDirectByteBuf中未重写此方法
     @Override
     void init(PoolChunk<ByteBuffer> chunk, ByteBuffer nioBuffer,
               long handle, int offset, int length, int maxLength, PoolThreadCache cache) {
         super.init(chunk, nioBuffer, handle, offset, length, maxLength, cache);
+        // 初始化内存地址
         initMemoryAddress();
     }
 
+    // PooledDirectByteBuf中未重写此方法
     @Override
     void initUnpooled(PoolChunk<ByteBuffer> chunk, int length) {
         super.initUnpooled(chunk, length);
@@ -316,7 +325,7 @@ final class PooledUnsafeDirectByteBuf extends PooledByteBuf<ByteBuffer> {
 
     @Override
     public ByteBuffer[] nioBuffers(int index, int length) {
-        return new ByteBuffer[] { nioBuffer(index, length) };
+        return new ByteBuffer[]{nioBuffer(index, length)};
     }
 
     @Override
@@ -359,10 +368,12 @@ final class PooledUnsafeDirectByteBuf extends PooledByteBuf<ByteBuffer> {
         return memoryAddress;
     }
 
+    // initMemoryAddress方法中，已将offset加到内存地址后
     private long addr(int index) {
         return memoryAddress + index;
     }
 
+    // 是 Unsafe 类型独有的。
     @Override
     protected SwappedByteBuf newSwappedByteBuf() {
         if (PlatformDependent.isUnaligned()) {
@@ -387,4 +398,39 @@ final class PooledUnsafeDirectByteBuf extends PooledByteBuf<ByteBuffer> {
         writerIndex = wIndex + length;
         return this;
     }
+
+    public static void main(String[] args) {
+
+
+        // 一个char占两字节
+        // 创建12个字节的字节缓冲区
+        ByteBuffer bb = ByteBuffer.wrap(new byte[2]);
+        // 存入字符串
+        bb.asCharBuffer().put("a");
+        System.out.println(Arrays.toString(bb.array()));
+
+        System.out.println("My OS默认ByteOrder为：" + ByteOrder.nativeOrder().toString());
+        System.out.println("ByteBuffer默认ByteOrder为：" + bb.order());
+
+        // 反转缓冲区
+        bb.rewind();
+        // 设置字节存储次序
+        bb.order(ByteOrder.BIG_ENDIAN);
+        bb.asCharBuffer().put("a");
+        System.out.println(Arrays.toString(bb.array()));
+
+        // 反转缓冲区
+        bb.rewind();
+        // 设置字节存储次序
+        bb.order(ByteOrder.LITTLE_ENDIAN);
+        bb.asCharBuffer().put("a");
+        System.out.println(Arrays.toString(bb.array()));
+
+        System.out.println("-------------");
+        ByteBuffer byteBuffer = ByteBuffer.allocate(8);
+        byteBuffer.putLong(1L);
+        System.out.println(Arrays.toString(byteBuffer.array()));
+
+    }
+
 }

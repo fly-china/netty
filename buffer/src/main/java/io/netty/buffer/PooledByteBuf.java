@@ -24,17 +24,18 @@ import java.nio.ByteOrder;
 
 abstract class PooledByteBuf<T> extends AbstractReferenceCountedByteBuf {
 
+    // Recycler 处理器，用于回收当前对象
     private final Recycler.Handle<PooledByteBuf<T>> recyclerHandle;
 
-    protected PoolChunk<T> chunk;
-    protected long handle;
-    protected T memory;
-    protected int offset;
-    protected int length;
-    int maxLength;
+    protected PoolChunk<T> chunk; // Chunk 对象块
+    protected long handle;  // 从 Chunk 对象中分配的内存块所处的位置
+    protected T memory; // 内存空间。具体什么样的数据，通过子类设置泛型。（HeapByteBuf对应：byte[]; DirectByteBuf对应：ByteBuffer）
+    protected int offset; // 使用 memory 的开始位置。
+    protected int length; // memory容量
+    int maxLength;  //  占用 memory 的大小
     PoolThreadCache cache;
-    ByteBuffer tmpNioBuf;
-    private ByteBufAllocator allocator;
+    ByteBuffer tmpNioBuf;   // 临时 ByteBuffer 对象
+    private ByteBufAllocator allocator; // ByteBuf 分配器对象
 
     @SuppressWarnings("unchecked")
     protected PooledByteBuf(Recycler.Handle<? extends PooledByteBuf<T>> recyclerHandle, int maxCapacity) {
@@ -68,6 +69,7 @@ abstract class PooledByteBuf<T> extends AbstractReferenceCountedByteBuf {
     }
 
     /**
+     * 每次在重用 PooledByteBuf 对象时，需要调用该方法
      * Method must be called before reuse this {@link PooledByteBufAllocator}
      */
     final void reuse(int maxCapacity) {
@@ -82,24 +84,29 @@ abstract class PooledByteBuf<T> extends AbstractReferenceCountedByteBuf {
         return length;
     }
 
+    // 调整容量大小
     @Override
     public final ByteBuf capacity(int newCapacity) {
         checkNewCapacity(newCapacity);
 
+        // 如果请求容量不需要重新分配，只需更新内存的长度
         // If the request capacity does not require reallocation, just update the length of the memory.
-        if (chunk.unpooled) {
+        if (chunk.unpooled) { // Chunk 内存，非池化
             if (newCapacity == length) {
                 return this;
             }
-        } else {
+        } else {// Chunk 内存，是池化
             if (newCapacity > length) {
+                // 扩容
                 if (newCapacity <= maxLength) {
                     length = newCapacity;
                     return this;
                 }
             } else if (newCapacity < length) {
+                // 缩容
                 if (newCapacity > maxLength >>> 1) {
                     if (maxLength <= 512) {
+                        // 因为 Netty SubPage 最小是 16 ，如果小于等 16 ，无法缩容。？？？？
                         if (newCapacity > maxLength - 16) {
                             length = newCapacity;
                             setIndex(Math.min(readerIndex(), newCapacity), Math.min(writerIndex(), newCapacity));
@@ -112,11 +119,12 @@ abstract class PooledByteBuf<T> extends AbstractReferenceCountedByteBuf {
                     }
                 }
             } else {
+                // 相等，无需扩容和缩容
                 return this;
             }
         }
 
-        // Reallocation required.
+        // Reallocation required. 重新分配新的内存空间，并将数据复制到其中。并且，释放老的内存空间。
         chunk.arena.reallocate(this, newCapacity, true);
         return this;
     }
@@ -126,6 +134,7 @@ abstract class PooledByteBuf<T> extends AbstractReferenceCountedByteBuf {
         return allocator;
     }
 
+    // 在网络上传输数据时，由于数据传输的两端对应不同的硬件平台，采用的存储字节顺序可能不一致。所以在 TCP/IP 协议规定了在网络上必须采用网络字节顺序，也就是大端模式。
     @Override
     public final ByteOrder order() {
         return ByteOrder.BIG_ENDIAN;
@@ -160,17 +169,21 @@ abstract class PooledByteBuf<T> extends AbstractReferenceCountedByteBuf {
         return tmpNioBuf;
     }
 
+    // memory 的类型不确定，所以该方法定义成抽象方法，由子类实现
     protected abstract ByteBuffer newInternalNioBuffer(T memory);
 
+    // 解除分配
     @Override
     protected final void deallocate() {
         if (handle >= 0) {
             final long handle = this.handle;
             this.handle = -1;
             memory = null;
+            // 由chunk.arena进行内存回收，释放内存回 Arena 中
             chunk.arena.free(chunk, tmpNioBuf, handle, maxLength, cache);
             tmpNioBuf = null;
             chunk = null;
+            // 回收对象
             recycle();
         }
     }

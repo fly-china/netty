@@ -31,6 +31,7 @@ public final class UnpooledByteBufAllocator extends AbstractByteBufAllocator imp
     private final boolean noCleaner;
 
     /**
+     * leak-detection：泄漏探测
      * Default instance which uses leak-detection for direct buffers.
      */
     public static final UnpooledByteBufAllocator DEFAULT =

@@ -312,6 +312,11 @@ public class UnpooledHeapByteBuf extends AbstractReferenceCountedByteBuf {
     @Override
     public ByteBuffer nioBuffer(int index, int length) {
         ensureAccessible();
+        /**
+         * position = index,
+         * limit = index + length
+         * slice()等于position -> limit的这段ByteBuffer
+         */
         return ByteBuffer.wrap(array, index, length).slice();
     }
 
@@ -323,6 +328,7 @@ public class UnpooledHeapByteBuf extends AbstractReferenceCountedByteBuf {
     @Override
     public ByteBuffer internalNioBuffer(int index, int length) {
         checkIndex(index, length);
+        // 将tmpNioBuffer重设position和limit，mark=-1
         return (ByteBuffer) internalNioBuffer().clear().position(index).limit(index + length);
     }
 
@@ -533,6 +539,7 @@ public class UnpooledHeapByteBuf extends AbstractReferenceCountedByteBuf {
         HeapByteBufUtil.setLongLE(array, index, value);
     }
 
+    // Netty中ByteBuf的copy(),是深拷贝
     @Override
     public ByteBuf copy(int index, int length) {
         checkIndex(index, length);
@@ -541,6 +548,7 @@ public class UnpooledHeapByteBuf extends AbstractReferenceCountedByteBuf {
         return new UnpooledHeapByteBuf(alloc(), copiedArray, maxCapacity());
     }
 
+    // 将byte数组包装成ByteBuffer，并复制给tmpNioBuf
     private ByteBuffer internalNioBuffer() {
         ByteBuffer tmpNioBuf = this.tmpNioBuf;
         if (tmpNioBuf == null) {

@@ -59,6 +59,7 @@ final class AdvancedLeakAwareByteBuf extends SimpleLeakAwareByteBuf {
         super(wrapped, trackedByteBuf, leak);
     }
 
+    // 记录泄漏，不做引用计数操作
     static void recordLeakNonRefCountingOperation(ResourceLeakTracker<ByteBuf> leak) {
         if (!ACQUIRE_AND_RELEASE_ONLY) {
             leak.record();
@@ -937,6 +938,7 @@ final class AdvancedLeakAwareByteBuf extends SimpleLeakAwareByteBuf {
 
     @Override
     public boolean release() {
+        // 记录信息。
         leak.record();
         return super.release();
     }

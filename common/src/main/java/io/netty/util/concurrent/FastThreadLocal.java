@@ -23,9 +23,11 @@ import java.util.IdentityHashMap;
 import java.util.Set;
 
 /**
+ * 一个特殊的ThreadLocal变体，当从FastThreadLocalThread中访问时可以获得更高的访问性能
  * A special variant of {@link ThreadLocal} that yields higher access performance when accessed from a
  * {@link FastThreadLocalThread}.
  * <p>
+ * 在内部，在数组中使用常量Index，代替ThreadLocal中使用哈希code和哈希表。
  * Internally, a {@link FastThreadLocal} uses a constant index in an array, instead of using hash code and hash table,
  * to look for a variable.  Although seemingly very subtle, it yields slight performance advantage over using a hash
  * table, and it is useful when accessed frequently.

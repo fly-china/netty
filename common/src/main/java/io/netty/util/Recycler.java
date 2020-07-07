@@ -32,6 +32,7 @@ import static java.lang.Math.max;
 import static java.lang.Math.min;
 
 /**
+ * 基于线程本地栈的轻量级对象池。
  * Light-weight object pool based on a thread-local stack.
  *
  * @param <T> the type of the pooled object
