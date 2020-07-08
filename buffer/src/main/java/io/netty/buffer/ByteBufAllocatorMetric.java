@@ -15,13 +15,18 @@
  */
 package io.netty.buffer;
 
+/**
+ * 用于监控 ByteBuf 的 Heap 和 Direct 占用内存的情况
+ */
 public interface ByteBufAllocatorMetric {
     /**
+     * 返回已使用的堆内存大小，未知则返回-1
      * Returns the number of bytes of heap memory used by a {@link ByteBufAllocator} or {@code -1} if unknown.
      */
     long usedHeapMemory();
 
     /**
+     * 返回已使用的直接内存大小，未知则返回-1
      * Returns the number of bytes of direct memory used by a {@link ByteBufAllocator} or {@code -1} if unknown.
      */
     long usedDirectMemory();

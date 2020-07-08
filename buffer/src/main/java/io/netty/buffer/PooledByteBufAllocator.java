@@ -32,25 +32,30 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * 使用池化的ByteBuf分配器
+ * TODO：使用到了超牛逼Jemalloc算法
+ */
 public class PooledByteBufAllocator extends AbstractByteBufAllocator implements ByteBufAllocatorMetricProvider {
 
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(PooledByteBufAllocator.class);
-    private static final int DEFAULT_NUM_HEAP_ARENA;
-    private static final int DEFAULT_NUM_DIRECT_ARENA;
+    private static final int DEFAULT_NUM_HEAP_ARENA; // Heap 类型的 Arena 数量，默认（最小值）：2*CPU核数
+    private static final int DEFAULT_NUM_DIRECT_ARENA; // direct 类型的 Arena 数量，默认（最小值）：2*CPU核数
 
-    private static final int DEFAULT_PAGE_SIZE;
-    private static final int DEFAULT_MAX_ORDER; // 8192 << 11 = 16 MiB per chunk
-    private static final int DEFAULT_TINY_CACHE_SIZE;
-    private static final int DEFAULT_SMALL_CACHE_SIZE;
-    private static final int DEFAULT_NORMAL_CACHE_SIZE;
-    private static final int DEFAULT_MAX_CACHED_BUFFER_CAPACITY;
-    private static final int DEFAULT_CACHE_TRIM_INTERVAL;
-    private static final boolean DEFAULT_USE_CACHE_FOR_ALL_THREADS;
-    private static final int DEFAULT_DIRECT_MEMORY_CACHE_ALIGNMENT;
-    static final int DEFAULT_MAX_CACHED_BYTEBUFFERS_PER_CHUNK;
+    private static final int DEFAULT_PAGE_SIZE; // 默认 Page 的内存大小：8192B=8KB
+    private static final int DEFAULT_MAX_ORDER; // 满二叉树的高度，默认为 11 。8192 << 11 = 16 MiB per chunk。
+    private static final int DEFAULT_TINY_CACHE_SIZE; // PoolThreadCache 的 tiny 类型的内存块的缓存数量。默认为 512
+    private static final int DEFAULT_SMALL_CACHE_SIZE; // PoolThreadCache 的 small 类型的内存块的缓存数量。默认为 256
+    private static final int DEFAULT_NORMAL_CACHE_SIZE; // PoolThreadCache 的 normal 类型的内存块的缓存数量。默认为 64
+    private static final int DEFAULT_MAX_CACHED_BUFFER_CAPACITY; // PoolThreadCache 缓存的内存块的最大字节数，默认：32*1024
+    private static final int DEFAULT_CACHE_TRIM_INTERVAL; // 默认：8192
+    private static final boolean DEFAULT_USE_CACHE_FOR_ALL_THREADS; // 是否使用PoolThreadCache。默认：true
+    private static final int DEFAULT_DIRECT_MEMORY_CACHE_ALIGNMENT; // Direct 内存对齐基准,默认：0
+    static final int DEFAULT_MAX_CACHED_BYTEBUFFERS_PER_CHUNK;  // 默认：1023
 
-    private static final int MIN_PAGE_SIZE = 4096;
-    private static final int MAX_CHUNK_SIZE = (int) (((long) Integer.MAX_VALUE + 1) / 2);
+    private static final int MIN_PAGE_SIZE = 4096;  // Page的内存最小值。默认为 4KB = 4096B
+    private static final int MAX_CHUNK_SIZE = (int) (((long) Integer.MAX_VALUE + 1) / 2); // Chunk 的内存最大值。默认为 1GB
+
 
     static {
         int defaultPageSize = SystemPropertyUtil.getInt("io.netty.allocator.pageSize", 8192);
@@ -73,25 +78,34 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator implements 
         }
         DEFAULT_MAX_ORDER = defaultMaxOrder;
 
+        // 确定nHeapArena和nDirectArena的合理默认值。假设每个arena有3个chunk，那么pool消耗的内存不会超过最大内存的50%。
         // Determine reasonable default for nHeapArena and nDirectArena.
         // Assuming each arena has 3 chunks, the pool should not consume more than 50% of max memory.
         final Runtime runtime = Runtime.getRuntime();
 
         /*
+         * 默认使用：2CPU核数来减少竞争。如果我们选择较小的数目，我们将会遇到hot spots，因为分配和释放需要在PoolArena上同步。
          * We use 2 * available processors by default to reduce contention as we use 2 * available processors for the
          * number of EventLoops in NIO and EPOLL as well. If we choose a smaller number we will run into hot spots as
          * allocation and de-allocation needs to be synchronized on the PoolArena.
          *
          * See https://github.com/netty/netty/issues/3888.
          */
+        /*
+         * 我的电脑8核，32G。defaultMinNumArena=2*8=16，runtime.maxMemory()=32G
+         * (runtime.maxMemory() / defaultChunkSize / 2 / 3) = 37
+         */
         final int defaultMinNumArena = NettyRuntime.availableProcessors() * 2;
-        final int defaultChunkSize = DEFAULT_PAGE_SIZE << DEFAULT_MAX_ORDER;
+        final int defaultChunkSize = DEFAULT_PAGE_SIZE << DEFAULT_MAX_ORDER; // 8192 << 11 = 16 MiB per chunk。
+        // 我的电脑，经计算为：16
         DEFAULT_NUM_HEAP_ARENA = Math.max(0,
                 SystemPropertyUtil.getInt(
                         "io.netty.allocator.numHeapArenas",
                         (int) Math.min(
                                 defaultMinNumArena,
                                 runtime.maxMemory() / defaultChunkSize / 2 / 3)));
+        //  除2 是为了保证 Arena 不超过内存的一半，而 除3 是为了每个 Arena 有三个 Chunk 。
+        // 我的电脑，经计算为：16
         DEFAULT_NUM_DIRECT_ARENA = Math.max(0,
                 SystemPropertyUtil.getInt(
                         "io.netty.allocator.numDirectArenas",
@@ -154,14 +168,14 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator implements 
 
     private final PoolArena<byte[]>[] heapArenas;
     private final PoolArena<ByteBuffer>[] directArenas;
-    private final int tinyCacheSize;
-    private final int smallCacheSize;
-    private final int normalCacheSize;
+    private final int tinyCacheSize;     // PoolThreadCache的 tiny 内存块缓存数组的大小
+    private final int smallCacheSize;    // PoolThreadCache的 small 内存块缓存数组的大小
+    private final int normalCacheSize;   // PoolThreadCache的 normal 内存块缓存数组的大小
     private final List<PoolArenaMetric> heapArenaMetrics;
     private final List<PoolArenaMetric> directArenaMetrics;
-    private final PoolThreadLocalCache threadCache;
-    private final int chunkSize;
-    private final PooledByteBufAllocatorMetric metric;
+    private final PoolThreadLocalCache threadCache; // 线程变量，用于获得 PoolThreadCache 对象。
+    private final int chunkSize; //  Chunk 大小
+    private final PooledByteBufAllocatorMetric metric; // new PooledByteBufAllocatorMetric(this);
 
     public PooledByteBufAllocator() {
         this(false);
@@ -275,11 +289,12 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator implements 
             throw new IllegalArgumentException("pageSize: " + pageSize + " (expected: " + MIN_PAGE_SIZE + ")");
         }
 
+        // (pageSize & pageSize - 1) == 0 ? 偶数 : 奇数
         if ((pageSize & pageSize - 1) != 0) {
             throw new IllegalArgumentException("pageSize: " + pageSize + " (expected: power of 2)");
         }
 
-        // Logarithm base 2. At this point we know that pageSize is a power of two.
+        // Logarithm base 2. At this point we know that pageSize is a power of two.以2为底的对数。至此，我们知道pageSize是2的幂。
         return Integer.SIZE - 1 - Integer.numberOfLeadingZeros(pageSize);
     }
 

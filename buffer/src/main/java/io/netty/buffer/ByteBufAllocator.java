@@ -16,14 +16,17 @@
 package io.netty.buffer;
 
 /**
+ * 负责分配buffers。实现类应当时线程安全的
  * Implementations are responsible to allocate buffers. Implementations of this interface are expected to be
  * thread-safe.
  */
 public interface ByteBufAllocator {
 
+    // 默认分配器：PooledByteBufAllocator。安卓默认：UnPooledByteBufAllocator
     ByteBufAllocator DEFAULT = ByteBufUtil.DEFAULT_ALLOCATOR;
 
     /**
+     * 分配ByteBuf。heap还是direct的buffer，取决于具体实现
      * Allocate a {@link ByteBuf}. If it is a direct or heap buffer
      * depends on the actual implementation.
      */
@@ -43,6 +46,7 @@ public interface ByteBufAllocator {
     ByteBuf buffer(int initialCapacity, int maxCapacity);
 
     /**
+     * 分配一个用于IO的ByteBuf，倾向于Direct ByteBuf
      * Allocate a {@link ByteBuf}, preferably a direct buffer which is suitable for I/O.
      */
     ByteBuf ioBuffer();
@@ -58,6 +62,7 @@ public interface ByteBufAllocator {
     ByteBuf ioBuffer(int initialCapacity, int maxCapacity);
 
     /**
+     * 分配一个heap类型的ByteBuf
      * Allocate a heap {@link ByteBuf}.
      */
     ByteBuf heapBuffer();
@@ -74,6 +79,7 @@ public interface ByteBufAllocator {
     ByteBuf heapBuffer(int initialCapacity, int maxCapacity);
 
     /**
+     * 分配一个direct类型的ByteBuf
      * Allocate a direct {@link ByteBuf}.
      */
     ByteBuf directBuffer();
@@ -90,6 +96,7 @@ public interface ByteBufAllocator {
     ByteBuf directBuffer(int initialCapacity, int maxCapacity);
 
     /**
+     * 具体创建的是 Heap ByteBuf 还是 Direct ByteBuf ，由实现类决定。
      * Allocate a {@link CompositeByteBuf}.
      * If it is a direct or heap buffer depends on the actual implementation.
      */
@@ -122,11 +129,14 @@ public interface ByteBufAllocator {
     CompositeByteBuf compositeDirectBuffer(int maxNumComponents);
 
     /**
+     * 是否基于Direct且使用池化
      * Returns {@code true} if direct {@link ByteBuf}'s are pooled
      */
     boolean isDirectBufferPooled();
 
     /**
+     * 扩容时，计算新的容量
+     * （超过阈值（4MB），扩容时不再是翻倍扩容，而是仅增加固定容量，否则会过度消耗空间；不超过阈值时，找大于minNewCapacity的最小2次幂）
      * Calculate the new capacity of a {@link ByteBuf} that is used when a {@link ByteBuf} needs to expand by the
      * {@code minNewCapacity} with {@code maxCapacity} as upper-bound.
      */
