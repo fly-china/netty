@@ -21,11 +21,13 @@ package io.netty.buffer;
 public interface PoolChunkListMetric extends Iterable<PoolChunkMetric> {
 
     /**
+     * 返回chunk list的最小使用量，在chunks被提升到前一个列表之前。
      * Return the minimum usage of the chunk list before which chunks are promoted to the previous list.
      */
     int minUsage();
 
     /**
+     * 返回chunk list的最大使用量，在chunks被提升到下一个列表之后。
      * Return the maximum usage of the chunk list after which chunks are promoted to the next list.
      */
     int maxUsage();

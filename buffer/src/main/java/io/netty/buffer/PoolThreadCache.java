@@ -161,6 +161,7 @@ final class PoolThreadCache {
     }
 
     /**
+     * 试着从缓存中分配一个 Tiny 类型缓冲区。如果成功返回true，否则返回false
      * Try to allocate a tiny buffer out of the cache. Returns {@code true} if successful {@code false} otherwise
      */
     boolean allocateTiny(PoolArena<?> area, PooledByteBuf<?> buf, int reqCapacity, int normCapacity) {
@@ -168,6 +169,7 @@ final class PoolThreadCache {
     }
 
     /**
+     * 试着从缓存中分配一个 Small 类型缓冲区。如果成功返回true，否则返回false
      * Try to allocate a small buffer out of the cache. Returns {@code true} if successful {@code false} otherwise
      */
     boolean allocateSmall(PoolArena<?> area, PooledByteBuf<?> buf, int reqCapacity, int normCapacity) {

@@ -106,7 +106,7 @@ abstract class PooledByteBuf<T> extends AbstractReferenceCountedByteBuf {
                 // 缩容
                 if (newCapacity > maxLength >>> 1) {
                     if (maxLength <= 512) {
-                        // 因为 Netty SubPage 最小是 16 ，如果小于等 16 ，无法缩容。？？？？
+                        // 因为 Netty SubPage 最小是 16B ，如果小于等 16 ，无法缩容。？？？？
                         if (newCapacity > maxLength - 16) {
                             length = newCapacity;
                             setIndex(Math.min(readerIndex(), newCapacity), Math.min(writerIndex(), newCapacity));

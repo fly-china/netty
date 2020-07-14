@@ -21,16 +21,19 @@ package io.netty.buffer;
 public interface PoolSubpageMetric {
 
     /**
+     * Subpage的数量总合
      * Return the number of maximal elements that can be allocated out of the sub-page.
      */
     int maxNumElements();
 
     /**
+     * 可用数量。
      * Return the number of available elements to be allocated.
      */
     int numAvailable();
 
     /**
+     * SubPage元素的大小
      * Return the size (in bytes) of the elements that will be allocated.
      */
     int elementSize();
