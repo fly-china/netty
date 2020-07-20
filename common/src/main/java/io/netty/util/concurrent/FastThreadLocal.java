@@ -28,10 +28,13 @@ import java.util.Set;
  * {@link FastThreadLocalThread}.
  * <p>
  * 在内部，在数组中使用常量Index，代替ThreadLocal中使用哈希code和哈希表。
+ * 尽管看起来非常微妙，但与使用哈希表相比，它会产生轻微的性能优势，而且在频繁访问时非常有用。
  * Internally, a {@link FastThreadLocal} uses a constant index in an array, instead of using hash code and hash table,
  * to look for a variable.  Although seemingly very subtle, it yields slight performance advantage over using a hash
  * table, and it is useful when accessed frequently.
  * </p><p>
+ * 要利用这个线程局部变量，你的线程必须是{@link FastThreadLocalThread}或它的子类型。
+ * Netty 线程池里面创建的线程都符合这条件，只有用户自定义的线程池不符合（除非再次封装）。
  * To take advantage of this thread-local variable, your thread must be a {@link FastThreadLocalThread} or its subtype.
  * By default, all threads created by {@link DefaultThreadFactory} are {@link FastThreadLocalThread} due to this reason.
  * </p><p>
@@ -42,6 +45,14 @@ import java.util.Set;
  *
  * @param <V> the type of the thread-local variable
  * @see ThreadLocal
+ *
+ *
+ * 当我们在一个非 Netty 线程池创建的线程中使用 ftl 的时候，Netty 会注册一个垃圾清理线程（因为 Netty 线程池创建的线程最终都会
+ * 执行 removeAll 方法，不会出现内存泄漏），用于清理这个线程这个 ftl 变量。
+ * 非 Netty 线程如果使用 ftl，Netty 仍然会借助 JDK 的 ThreadLocal，只是只借用一个槽位，放置 Netty 的 InternalThreadLocalMap（slowGet方法），
+ * Map 中再放置 Netty 的 ftl 。所以，在使用线程池的情况下可能会出现内存泄漏。
+ * Netty 为了解决这个问题，在每次使用新的 ftl 的时候，都将这个 ftl 注册到和线程对象绑定到一个 GC 引用上，
+ * 当这个线程对象被回收的时候，也会顺便清理掉他的 Map 中的 所有 ftl，解决了该问题，就像解决 JDK Nio bug 一样。
  */
 public class FastThreadLocal<V> {
 
@@ -124,6 +135,10 @@ public class FastThreadLocal<V> {
         variablesToRemove.remove(variable);
     }
 
+    /**
+     * 快乐源泉之一：通过一个AtomicInteger变量自增得到，比ThreadLocalMap使用Hash要快
+     * 对应JDK中：java.lang.ThreadLocal#nextHashCode
+     */
     private final int index;
 
     public FastThreadLocal() {
@@ -146,6 +161,7 @@ public class FastThreadLocal<V> {
         return value;
     }
 
+    // 将这个 ftl 注册到一个 清理线程 中，当 thread 对象被 gc 的时候，则会自动清理掉 ftl，防止 JDK 的内存泄漏问题。
     private void registerCleaner(final InternalThreadLocalMap threadLocalMap) {
         Thread current = Thread.currentThread();
         if (FastThreadLocalThread.willCleanupFastThreadLocals(current) || threadLocalMap.isCleanerFlagSet(index)) {
@@ -202,8 +218,12 @@ public class FastThreadLocal<V> {
      */
     public final void set(V value) {
         if (value != InternalThreadLocalMap.UNSET) {
+            // 获取InternalThreadLocalMap
             InternalThreadLocalMap threadLocalMap = InternalThreadLocalMap.get();
             if (setKnownNotUnset(threadLocalMap, value)) {
+                // 插入的对象没有替换掉别的对象，而是替换的原槽位的UNSET空对象
+
+                // 将这个 ftl 注册到一个 清理线程 中，当 thread 对象被 gc 的时候，则会自动清理掉 ftl，防止 JDK 的内存泄漏问题。
                 registerCleaner(threadLocalMap);
             }
         } else {
@@ -223,9 +243,11 @@ public class FastThreadLocal<V> {
     }
 
     /**
+     * TODO:重点
      * @return see {@link InternalThreadLocalMap#setIndexedVariable(int, Object)}.
      */
     private boolean setKnownNotUnset(InternalThreadLocalMap threadLocalMap, V value) {
+        // setIndexedVariable返回True：插入的对象没有替换掉别的对象，也就是原槽位的UNSET空对象。换句话说，只有更新了对象才会返回 false。
         if (threadLocalMap.setIndexedVariable(index, value)) {
             addToVariablesToRemove(threadLocalMap, this);
             return true;
@@ -285,6 +307,7 @@ public class FastThreadLocal<V> {
     }
 
     /**
+     * 当线程局部变量被{@link #remove()}删除时调用。
      * Invoked when this thread local variable is removed by {@link #remove()}. Be aware that {@link #remove()}
      * is not guaranteed to be called when the `Thread` completes which means you can not depend on this for
      * cleanup of the resources in the case of `Thread` completion.

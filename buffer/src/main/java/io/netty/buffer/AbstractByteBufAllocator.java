@@ -274,8 +274,9 @@ public abstract class AbstractByteBufAllocator implements ByteBufAllocator {
         // 超过阈值（4MB），扩容时不再是翻倍扩容，而是仅增加固定容量，否则会过度消耗空间
         // If over threshold, do not double but just increase by threshold.
         if (minNewCapacity > threshold) {
-            // （minNewCapacity / threshold），minNewCapacity是threshold的几倍
+            // （minNewCapacity / threshold），newCapacity是threshold的n倍
             int newCapacity = minNewCapacity / threshold * threshold;
+
             // newCapacity(n*threshold) <= minNewCapacity <= maxCapacity
             if (newCapacity > maxCapacity - threshold) {
                 //  n*threshold < maxCapacity < (n+1)*threshold
@@ -287,7 +288,7 @@ public abstract class AbstractByteBufAllocator implements ByteBufAllocator {
             return newCapacity;
         }
 
-        // 未超过阈值时，寻找大于minNewCapacity的最小2次幂的整数，作为新容量
+        // 未超过阈值时，最小为64B，寻找大于minNewCapacity的最小2次幂的整数，作为新容量
         // Not over threshold. Double up to 4 MiB, starting from 64.
         int newCapacity = 64;
         while (newCapacity < minNewCapacity) {

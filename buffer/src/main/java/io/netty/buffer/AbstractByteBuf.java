@@ -295,6 +295,9 @@ public abstract class AbstractByteBuf extends ByteBuf {
         return this;
     }
 
+    /**
+     * TODO:重点：确保容量是否够用，不够则扩容
+     */
     final void ensureWritable0(int minWritableBytes) {
         ensureAccessible();
         if (minWritableBytes <= writableBytes()) {
@@ -1085,6 +1088,7 @@ public abstract class AbstractByteBuf extends ByteBuf {
 
     @Override
     public ByteBuf writeBytes(byte[] src, int srcIndex, int length) {
+        // 确保容量是否够用，不够则扩容
         ensureWritable(length);
         setBytes(writerIndex, src, srcIndex, length);
         writerIndex += length;

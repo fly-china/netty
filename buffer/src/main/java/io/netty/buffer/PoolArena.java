@@ -333,7 +333,7 @@ abstract class PoolArena<T> implements PoolArenaMetric {
             deallocationsHuge.increment();
         } else {
             SizeClass sizeClass = sizeClass(normCapacity);
-            // 添加内存块到 PoolThreadCache 缓存指定的 MemoryRegionCache 的队列中，方便下次使用
+            // TODO:添加内存块到 PoolThreadCache 缓存指定的 MemoryRegionCache 的队列中，方便下次使用
             if (cache != null && cache.add(this, chunk, nioBuffer, handle, normCapacity, sizeClass)) {
                 // cached so not free it.
                 return;

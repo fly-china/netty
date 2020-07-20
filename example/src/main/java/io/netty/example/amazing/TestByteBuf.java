@@ -8,6 +8,8 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 
+import static io.netty.buffer.Unpooled.buffer;
+
 /**
  * 测试ByteBuf相关
  *
@@ -19,9 +21,20 @@ public class TestByteBuf {
 
     public static void main(String[] args) throws Exception {
 
-        System.out.println(Integer.toBinaryString(-8192));
-        // 分配池化直接内存
-        ByteBuf byteBuf = PooledByteBufAllocator.DEFAULT.buffer(1024);
+        PooledByteBufAllocator pooledByteBufAllocator = PooledByteBufAllocator.DEFAULT;
+        // 分配池化直接内存（可以分别试试tiny、small、normal的内存分配）
+        ByteBuf byteBuf = pooledByteBufAllocator.buffer(1023 * 32);
+        System.out.println("首次分配的内存地址为：" + byteBuf.toString() + "---memoryAddress=" + byteBuf.memoryAddress());
+        /**
+         * TODO:调用release后，如果refCnt=0，则调用PoolArena#free释放内存。
+         *  1、如果ByteBuf为UnPool类型（此处由pool分配器分配出的Unpool内存块必定是：Huge内存），则直接销毁
+         *  2、如果ByteBuf为Pool类型，则会尝试调用PoolThreadCache#add方法，将内存块添加到PoolThreadCache中内存数组，方便下次使用
+         *      如果PoolThreadCache#add失败（大于32KB的Small内存或内存数组已满），则释放指定位置的 Page / Subpage 内存块回 Chunk 中
+         */
+        byteBuf.release();
+        // TODO:release后会放回SubPagePool，再次分配从SubPagePool中获取,优先从PoolThreadCache中获取。会调用方法：PoolThreadCache#allocateSmall
+        ByteBuf byteBuf2 = pooledByteBufAllocator.buffer(1011 * 32);// 只要是（512，1024]区间，都会重用
+        System.out.println("再次分配的内存地址为：" + byteBuf2.toString() + "---memoryAddress=" + byteBuf2.memoryAddress());
 
 
         System.out.println("-----------------------");
@@ -72,6 +85,7 @@ public class TestByteBuf {
 
     /**
      * 测试下述方法：io.netty.buffer.PoolArena#normalizeCapacity(int)
+     * 获取大于reqCapacity的最小2次幂的数
      *
      * @param reqCapacity 请求容量
      */

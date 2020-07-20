@@ -122,6 +122,8 @@ import java.util.Deque;
  * memoryMap[id]= depth_of_id  is defined above
  * - 指示可自由分配的第一个节点位于深度x处(从根开始)
  * depthMap[id]= x  indicates that the first node which is free to be allocated is at depth x (from root)
+ *
+ * Chunk 是 Netty 对操作系统进行内存申请的单位，后续所有的内存分配都是在 Chunk 里面进行操作
  */
 final class PoolChunk<T> implements PoolChunkMetric {
 

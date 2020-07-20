@@ -18,8 +18,15 @@ package io.netty.buffer;
 
 final class PoolSubpage<T> implements PoolSubpageMetric {
 
+
     /**
-     * Subpage 分配信息数组
+     * Subpage 分配信息数组，数组长度默认为：8
+     * 每个 long 的 bits 位代表一个 Subpage 是否分配。(1个long占用8字节，即64位)
+     * 默认最小的Subpage=16B，pageSize=8KB,那么：8KB / 16B = 512个，单个Page可能最多分成512个SubPage
+     * 一个long可以表示64位，那么长度为8的long数组，会有：8 * 64 = 512位。即满足Subpage个数最多的情况
+     */
+    /**
+     * Subpage 分配信息数组，数组长度默认为：8
      * <p>
      * 每个 long 的 bits 位代表一个 Subpage 是否分配。(1个long占用8字节，即64位)
      * 因为 PoolSubpage 可能会超过 64 个( long 的 bits 位数 )，所以使用数组。
