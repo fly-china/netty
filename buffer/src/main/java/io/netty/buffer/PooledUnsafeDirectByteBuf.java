@@ -18,7 +18,6 @@ package io.netty.buffer;
 
 import io.netty.util.Recycler;
 import io.netty.util.internal.PlatformDependent;
-import sun.jvm.hotspot.runtime.Bytes;
 
 import java.io.IOException;
 import java.io.InputStream;
