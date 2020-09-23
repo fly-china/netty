@@ -385,6 +385,10 @@ public final class PlatformDependent {
     }
 
     /**
+     * 尝试释放指定的direct ByteBuffer。如果当前平台不支持此操作，或者指定的缓冲区不是直接缓冲区，则此方法不执行任何操作。
+     * * 安卓使用本类中的初始化的NOOP，freeDirectBuffer方法什么都不做
+     * * 大于等于JDK9的使用：CleanerJava9；其他使用：CleanerJava6
+     * * * 通过反射获得 DirectByteBuffer 对象的 #cleaner() 方法，从而调用 sun.misc.Cleaner#clean() 方法
      * Try to deallocate the specified direct {@link ByteBuffer}. Please note this method does nothing if
      * the current platform does not support this operation or the specified buffer is not a direct buffer.
      */

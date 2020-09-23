@@ -94,10 +94,11 @@ public abstract class ResourceLeakDetectorFactory {
     }
 
     /**
+     * 通过系统属性加载自定义泄漏检测器的默认实现
      * Default implementation that loads custom leak detector via system property
      */
     private static final class DefaultResourceLeakDetectorFactory extends ResourceLeakDetectorFactory {
-        private final Constructor<?> obsoleteCustomClassConstructor;
+        private final Constructor<?> obsoleteCustomClassConstructor;// obsolete废弃的
         private final Constructor<?> customClassConstructor;
 
         DefaultResourceLeakDetectorFactory() {

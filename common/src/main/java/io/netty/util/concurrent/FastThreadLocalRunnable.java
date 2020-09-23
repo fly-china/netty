@@ -17,6 +17,9 @@ package io.netty.util.concurrent;
 
 import io.netty.util.internal.ObjectUtil;
 
+/**
+ * TODO:重点：解决 JDK 中自带的 ThreadLocal 在线程池使用环境中，有内存泄漏的风险
+ */
 final class FastThreadLocalRunnable implements Runnable {
     private final Runnable runnable;
 
@@ -29,6 +32,7 @@ final class FastThreadLocalRunnable implements Runnable {
         try {
             runnable.run();
         } finally {
+            // TODO:重点：多了一行 FastThreadLocal.removeAll()，众所周知，JDK 中自带的 ThreadLocal 在线程池使用环境中，有内存泄漏的风险
             FastThreadLocal.removeAll();
         }
     }

@@ -26,6 +26,7 @@ import java.util.Arrays;
 
 
 /**
+ * 非池化。通过分配空间，创建一个新的ByteBuf，来包装或拷贝已存在的byte数组、bytebuffer或string字符串
  * Creates a new {@link ByteBuf} by allocating new space or by wrapping
  * or copying existing byte arrays, byte buffers and a string.
  *
@@ -52,6 +53,7 @@ import java.util.Arrays;
  *
  * <h3>Creating a wrapped buffer</h3>
  *
+ * 被包装的buffer是一个或多个已存在byte[]或byte buffers的视图。源内容变化，wrapped buffer会跟随变化
  * Wrapped buffer is a buffer which is a view of one or more existing
  * byte arrays and byte buffers.  Any changes in the content of the original
  * array or buffer will be visible in the wrapped buffer.  Various wrapper
@@ -62,6 +64,7 @@ import java.util.Arrays;
  *
  * <h3>Creating a copied buffer</h3>
  *
+ * Copied buffer是一个或多个已存在byte[]或byte buffers的深拷贝。源数据和拷贝后的数据互不影响
  * Copied buffer is a deep copy of one or more existing byte arrays, byte
  * buffers or a string.  Unlike a wrapped buffer, there's no shared data
  * between the original data and the copied buffer.  Various copy methods are

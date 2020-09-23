@@ -44,6 +44,9 @@ final class HeapByteBufUtil {
                 (memory[index + 2] & 0xff) << 16;
     }
 
+    /**
+     * 大端模式
+     */
     static int getInt(byte[] memory, int index) {
         return  (memory[index]     & 0xff) << 24 |
                 (memory[index + 1] & 0xff) << 16 |
@@ -51,6 +54,9 @@ final class HeapByteBufUtil {
                 memory[index + 3] & 0xff;
     }
 
+    /**
+     * 小端模式
+     */
     static int getIntLE(byte[] memory, int index) {
         return  memory[index]      & 0xff        |
                 (memory[index + 1] & 0xff) << 8  |
@@ -106,6 +112,11 @@ final class HeapByteBufUtil {
         memory[index + 2] = (byte) (value >>> 16);
     }
 
+    /**
+     * 深入浅出： 大小端模式https://www.bysocket.com/technique/615.html
+     * 大端模式：value数据的高字节地址 保存到 内存的低地址中。
+     * 所以：value的高8位（value >>> 24），存在memory内存中最低的地址memory[index]中
+     */
     static void setInt(byte[] memory, int index, int value) {
         memory[index]     = (byte) (value >>> 24);
         memory[index + 1] = (byte) (value >>> 16);
@@ -113,6 +124,10 @@ final class HeapByteBufUtil {
         memory[index + 3] = (byte) value;
     }
 
+    /**
+     * 大端模式：value数据的高字节地址 保存到 内存的高地址中
+     * 所以：value的高8位（value >>> 24），存在memory内存中最低的地址memory[index+3]中
+     */
     static void setIntLE(byte[] memory, int index, int value) {
         memory[index]     = (byte) value;
         memory[index + 1] = (byte) (value >>> 8);

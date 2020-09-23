@@ -41,7 +41,12 @@ import static io.netty.util.internal.MathUtil.isOutOfBounds;
 import static io.netty.util.internal.ObjectUtil.checkPositiveOrZero;
 
 /**
+ * ByteBuf的骨架实现
  * A skeletal implementation of a buffer.
+ * 三个依然未实现的ByteBuf中的关键方法：
+ * * ByteBufAllocator alloc(); // 分配器，用于创建 ByteBuf 对象
+ * * ByteBuf unwrap(); // 获得被包装( wrap )的 ByteBuf 对象。
+ * * boolean isDirect(); // 是否 NIO Direct Buffer
  */
 public abstract class AbstractByteBuf extends ByteBuf {
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(AbstractByteBuf.class);
@@ -64,6 +69,7 @@ public abstract class AbstractByteBuf extends ByteBuf {
         }
     }
 
+    //内存泄漏探测器
     static final ResourceLeakDetector<ByteBuf> leakDetector =
             ResourceLeakDetectorFactory.instance().newResourceLeakDetector(ByteBuf.class);
 
@@ -211,25 +217,37 @@ public abstract class AbstractByteBuf extends ByteBuf {
         return this;
     }
 
+    // 释放【所有的】废弃段的空间内存
     @Override
     public ByteBuf discardReadBytes() {
         ensureAccessible();
+        // 无废弃段，直接返回
         if (readerIndex == 0) {
             return this;
         }
 
         if (readerIndex != writerIndex) {
+            // 还有可读buffer
+
+            // 复制readable段的报文到区域头部
             setBytes(0, this, readerIndex, writerIndex - readerIndex);
             writerIndex -= readerIndex;
             adjustMarkers(readerIndex);
             readerIndex = 0;
         } else {
+            // 没有可读buffer了
             adjustMarkers(readerIndex);
             writerIndex = readerIndex = 0;
         }
         return this;
     }
 
+    /**
+     * 释放【部分的】废弃段的空间内存
+     * 相比于discardReadBytes，只有在readerIndex大于容量一半时，才丢弃。
+     * 因为，丢弃时会有setBytes()进行内容复制，较为耗时。
+     * 此方法，相当于在空间和时间之间，做了一个平衡。
+     */
     @Override
     public ByteBuf discardSomeReadBytes() {
         ensureAccessible();
@@ -243,6 +261,7 @@ public abstract class AbstractByteBuf extends ByteBuf {
             return this;
         }
 
+        // 读取超过容量的一半，进行释放
         if (readerIndex >= capacity() >>> 1) {
             setBytes(0, this, readerIndex, writerIndex - readerIndex);
             writerIndex -= readerIndex;
@@ -271,16 +290,21 @@ public abstract class AbstractByteBuf extends ByteBuf {
     @Override
     public ByteBuf ensureWritable(int minWritableBytes) {
         checkPositiveOrZero(minWritableBytes, "minWritableBytes");
+        // 确保空间够用可写，不够则扩容
         ensureWritable0(minWritableBytes);
         return this;
     }
 
+    /**
+     * TODO:重点：确保容量是否够用，不够则扩容
+     */
     final void ensureWritable0(int minWritableBytes) {
         ensureAccessible();
         if (minWritableBytes <= writableBytes()) {
             return;
         }
         if (checkBounds) {
+            // 超过最大上限，抛出 IndexOutOfBoundsException 异常
             if (minWritableBytes > maxCapacity - writerIndex) {
                 throw new IndexOutOfBoundsException(String.format(
                         "writerIndex(%d) + minWritableBytes(%d) exceeds maxCapacity(%d): %s",
@@ -288,10 +312,11 @@ public abstract class AbstractByteBuf extends ByteBuf {
             }
         }
 
+        // ByteBufAllocator扩容分配，扩容至大于所需空间的最小的2次幂的空间
         // Normalize the current capacity to the power of 2.
         int newCapacity = alloc().calculateNewCapacity(writerIndex + minWritableBytes, maxCapacity);
 
-        // Adjust to the new capacity.
+        // Adjust to the new capacity.设置新的容量大小
         capacity(newCapacity);
     }
 
@@ -522,7 +547,7 @@ public abstract class AbstractByteBuf extends ByteBuf {
 
     @Override
     public ByteBuf setBoolean(int index, boolean value) {
-        setByte(index, value? 1 : 0);
+        setByte(index, value ? 1 : 0);
         return this;
     }
 
@@ -660,7 +685,7 @@ public abstract class AbstractByteBuf extends ByteBuf {
 
         int nLong = length >>> 3;
         int nBytes = length & 7;
-        for (int i = nLong; i > 0; i --) {
+        for (int i = nLong; i > 0; i--) {
             _setLong(index, 0);
             index += 8;
         }
@@ -668,16 +693,16 @@ public abstract class AbstractByteBuf extends ByteBuf {
             _setInt(index, 0);
             // Not need to update the index as we not will use it after this.
         } else if (nBytes < 4) {
-            for (int i = nBytes; i > 0; i --) {
+            for (int i = nBytes; i > 0; i--) {
                 _setByte(index, (byte) 0);
-                index ++;
+                index++;
             }
         } else {
             _setInt(index, 0);
             index += 4;
-            for (int i = nBytes - 4; i > 0; i --) {
+            for (int i = nBytes - 4; i > 0; i--) {
                 _setByte(index, (byte) 0);
-                index ++;
+                index++;
             }
         }
         return this;
@@ -1063,6 +1088,7 @@ public abstract class AbstractByteBuf extends ByteBuf {
 
     @Override
     public ByteBuf writeBytes(byte[] src, int srcIndex, int length) {
+        // 确保容量是否够用，不够则扩容
         ensureWritable(length);
         setBytes(writerIndex, src, srcIndex, length);
         writerIndex += length;
@@ -1151,7 +1177,7 @@ public abstract class AbstractByteBuf extends ByteBuf {
 
         int nLong = length >>> 3;
         int nBytes = length & 7;
-        for (int i = nLong; i > 0; i --) {
+        for (int i = nLong; i > 0; i--) {
             _setLong(wIndex, 0);
             wIndex += 8;
         }
@@ -1159,14 +1185,14 @@ public abstract class AbstractByteBuf extends ByteBuf {
             _setInt(wIndex, 0);
             wIndex += 4;
         } else if (nBytes < 4) {
-            for (int i = nBytes; i > 0; i --) {
+            for (int i = nBytes; i > 0; i--) {
                 _setByte(wIndex, (byte) 0);
                 wIndex++;
             }
         } else {
             _setInt(wIndex, 0);
             wIndex += 4;
-            for (int i = nBytes - 4; i > 0; i --) {
+            for (int i = nBytes - 4; i > 0; i--) {
                 _setByte(wIndex, (byte) 0);
                 wIndex++;
             }
@@ -1349,10 +1375,10 @@ public abstract class AbstractByteBuf extends ByteBuf {
         }
 
         StringBuilder buf = new StringBuilder()
-            .append(StringUtil.simpleClassName(this))
-            .append("(ridx: ").append(readerIndex)
-            .append(", widx: ").append(writerIndex)
-            .append(", cap: ").append(capacity());
+                .append(StringUtil.simpleClassName(this))
+                .append("(ridx: ").append(readerIndex)
+                .append(", widx: ").append(writerIndex)
+                .append(", cap: ").append(capacity());
         if (maxCapacity != Integer.MAX_VALUE) {
             buf.append('/').append(maxCapacity);
         }
@@ -1433,6 +1459,7 @@ public abstract class AbstractByteBuf extends ByteBuf {
     }
 
     /**
+     * 应该由每个试图访问缓冲区内容的方法调用，以检查缓冲区之前是否已释放。
      * Should be called by every method that tries to access the buffers content to check
      * if the buffer was released before.
      */
@@ -1443,6 +1470,7 @@ public abstract class AbstractByteBuf extends ByteBuf {
     }
 
     /**
+     * 返回引用技术以尽量防止已经被释放的buffer（最大努力）
      * Returns the reference count that is used internally by {@link #ensureAccessible()} to try to guard
      * against using the buffer after it was released (best-effort).
      */

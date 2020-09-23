@@ -25,6 +25,7 @@ import java.nio.ByteOrder;
 class SimpleLeakAwareByteBuf extends WrappedByteBuf {
 
     /**
+     * 该对象和ResourceLeakTracker关联。当ResourceLeakTracker.close()被调用时，此对象作为入参。
      * This object's is associated with the {@link ResourceLeakTracker}. When {@link ResourceLeakTracker#close(Object)}
      * is called this object will be used as the argument. It is also assumed that this object is used when
      * {@link ResourceLeakDetector#track(Object)} is called to create {@link #leak}.
@@ -100,6 +101,7 @@ class SimpleLeakAwareByteBuf extends WrappedByteBuf {
     @Override
     public boolean release() {
         if (super.release()) {
+            // 引用计数变为0，需要释放内存
             closeLeak();
             return true;
         }
@@ -132,6 +134,7 @@ class SimpleLeakAwareByteBuf extends WrappedByteBuf {
     }
 
     private ByteBuf unwrappedDerived(ByteBuf derived) {
+        // 我们只需要unwrap SwappedByteBuf的实现，因为在AbstractLeakAwareByteBuf实现中，除了slices/duplicates和“真正的”buffers之外，这些将是唯一可能出现的。
         // We only need to unwrap SwappedByteBuf implementations as these will be the only ones that may end up in
         // the AbstractLeakAwareByteBuf implementations beside slices / duplicates and "real" buffers.
         ByteBuf unwrappedDerived = unwrapSwapped(derived);
@@ -162,6 +165,7 @@ class SimpleLeakAwareByteBuf extends WrappedByteBuf {
         return buf;
     }
 
+    // 生成一个新的共享trackedByteBuf和leak的内存泄漏检测ByteBuf
     private SimpleLeakAwareByteBuf newSharedLeakAwareByteBuf(
             ByteBuf wrapped) {
         return newLeakAwareByteBuf(wrapped, trackedByteBuf, leak);

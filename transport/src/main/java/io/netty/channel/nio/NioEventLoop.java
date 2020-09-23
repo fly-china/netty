@@ -340,6 +340,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
     }
 
     /**
+     * 重新构建 Selector 来替换掉事件循环的 Selector。来解决 臭名昭著的epoll 100% CPU 的bug。
      * Replaces the current {@link Selector} of this event loop with newly created {@link Selector}s to work
      * around the infamous epoll 100% CPU bug.
      */
@@ -356,6 +357,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
         rebuildSelector0();
     }
 
+    // 真正的Selector替换
     private void rebuildSelector0() {
         final Selector oldSelector = selector;
         final SelectorTuple newSelectorTuple;
@@ -381,11 +383,11 @@ public final class NioEventLoop extends SingleThreadEventLoop {
                 }
 
                 int interestOps = key.interestOps();
-                key.cancel();
+                key.cancel(); // 将原来可能存在BUG的SelectionKey取消
                 SelectionKey newKey = key.channel().register(newSelectorTuple.unwrappedSelector, interestOps, a);
                 if (a instanceof AbstractNioChannel) {
                     // Update SelectionKey
-                    ((AbstractNioChannel) a).selectionKey = newKey;
+                    ((AbstractNioChannel) a).selectionKey = newKey;// 替换为Netty自己实现新SelectionKey
                 }
                 nChannels ++;
             } catch (Exception e) {
@@ -405,6 +407,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
         unwrappedSelector = newSelectorTuple.unwrappedSelector;
 
         try {
+            // 已经将所有的SelectionKey注册到了新的selector上了，是时候关闭旧的selector了
             // time to close the old selector as everything else is registered to the new one
             oldSelector.close();
         } catch (Throwable t) {

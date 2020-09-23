@@ -436,9 +436,11 @@ final class UnsafeByteBufUtil {
         ByteBuf copy = buf.alloc().directBuffer(length, buf.maxCapacity());
         if (length != 0) {
             if (copy.hasMemoryAddress()) {
+                // 使用 Unsafe 操作来复制
                 PlatformDependent.copyMemory(addr, copy.memoryAddress(), length);
                 copy.setIndex(0, length);
             } else {
+                // 普通ByteBuf的复制
                 copy.writeBytes(buf, index, length);
             }
         }

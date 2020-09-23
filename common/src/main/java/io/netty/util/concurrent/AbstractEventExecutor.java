@@ -36,7 +36,9 @@ public abstract class AbstractEventExecutor extends AbstractExecutorService impl
     static final long DEFAULT_SHUTDOWN_QUIET_PERIOD = 2;
     static final long DEFAULT_SHUTDOWN_TIMEOUT = 15;
 
+    // 所属的EventExecutorGroup
     private final EventExecutorGroup parent;
+    //  EventExecutor 数组。只包含自己
     private final Collection<EventExecutor> selfCollection = Collections.<EventExecutor>singleton(this);
 
     protected AbstractEventExecutor() {
@@ -54,9 +56,10 @@ public abstract class AbstractEventExecutor extends AbstractExecutorService impl
 
     @Override
     public EventExecutor next() {
-        return this;
+        return this;// 返回自己
     }
 
+    // inEventLoop()方法还需在后面的子类中实现。因为AbstractEventExecutor 类还体现不出它所拥有的线程。
     @Override
     public boolean inEventLoop() {
         return inEventLoop(Thread.currentThread());
@@ -109,6 +112,7 @@ public abstract class AbstractEventExecutor extends AbstractExecutorService impl
         return new FailedFuture<V>(this, cause);
     }
 
+    // 实现自AbstractExecutorService抽象类
     @Override
     public Future<?> submit(Runnable task) {
         return (Future<?>) super.submit(task);
@@ -124,15 +128,19 @@ public abstract class AbstractEventExecutor extends AbstractExecutorService impl
         return (Future<T>) super.submit(task);
     }
 
+    // 实现自AbstractExecutorService抽象类
     @Override
     protected final <T> RunnableFuture<T> newTaskFor(Runnable runnable, T value) {
         return new PromiseTask<T>(this, runnable, value);
     }
 
+    // 实现自AbstractExecutorService抽象类
     @Override
     protected final <T> RunnableFuture<T> newTaskFor(Callable<T> callable) {
         return new PromiseTask<T>(this, callable);
     }
+
+    // #schedule(...) 方法，都不支持，交给子类 AbstractScheduledEventExecutor 实现
 
     @Override
     public ScheduledFuture<?> schedule(Runnable command, long delay,
@@ -156,6 +164,7 @@ public abstract class AbstractEventExecutor extends AbstractExecutorService impl
     }
 
     /**
+     * 所谓“安全”指的是，当任务执行发生异常时，仅仅打印告警日志
      * Try to execute the given {@link Runnable} and just log if it throws a {@link Throwable}.
      */
     protected static void safeExecute(Runnable task) {

@@ -22,15 +22,18 @@ import io.netty.util.internal.StringUtil;
 import java.nio.ByteBuffer;
 
 /**
+ * 不使用池化的ByteBuf分配器
  * Simplistic {@link ByteBufAllocator} implementation that does not pool anything.
  */
 public final class UnpooledByteBufAllocator extends AbstractByteBufAllocator implements ByteBufAllocatorMetricProvider {
 
+    // 用于监控ByteBuf 的 Heap 和 Direct 占用内存的情况（内部两个LongAdder进行统计）
     private final UnpooledByteBufAllocatorMetric metric = new UnpooledByteBufAllocatorMetric();
-    private final boolean disableLeakDetector;
-    private final boolean noCleaner;
+    private final boolean disableLeakDetector; // 默认false，true代表忽略内存检测，false代表使用内存检测
+    private final boolean noCleaner; // 默认true，不使用 `io.netty.util.internal.Cleaner` 释放 Direct ByteBuf
 
     /**
+     * leak-detection：泄漏探测
      * Default instance which uses leak-detection for direct buffers.
      */
     public static final UnpooledByteBufAllocator DEFAULT =
@@ -53,7 +56,7 @@ public final class UnpooledByteBufAllocator extends AbstractByteBufAllocator imp
      *                     a heap buffer
      * @param disableLeakDetector {@code true} if the leak-detection should be disabled completely for this
      *                            allocator. This can be useful if the user just want to depend on the GC to handle
-     *                            direct buffers when not explicit released.
+     *                            direct buffers when not explicit released. true代表忽略内存检测，false代表使用内存检测
      */
     public UnpooledByteBufAllocator(boolean preferDirect, boolean disableLeakDetector) {
         this(preferDirect, disableLeakDetector, PlatformDependent.useDirectBufferNoCleaner());
@@ -93,6 +96,7 @@ public final class UnpooledByteBufAllocator extends AbstractByteBufAllocator imp
         } else {
             buf = new InstrumentedUnpooledDirectByteBuf(this, initialCapacity, maxCapacity);
         }
+        // 如果disableLeakDetector=false，进行内存检测类的包装
         return disableLeakDetector ? buf : toLeakAwareBuffer(buf);
     }
 
@@ -113,6 +117,7 @@ public final class UnpooledByteBufAllocator extends AbstractByteBufAllocator imp
         return false;
     }
 
+    // 返回ByteBufAllocatorMetric内存监控类
     @Override
     public ByteBufAllocatorMetric metric() {
         return metric;
@@ -134,6 +139,10 @@ public final class UnpooledByteBufAllocator extends AbstractByteBufAllocator imp
         metric.heapCounter.add(-amount);
     }
 
+    /**
+     * TODO:装饰模式 增加了某些装置的UnpooledUnsafeHeapByteBuf
+     * 装饰功能：在分配内存和释放内存时，分别调用ByteBufAllocatorMetric的内存监控器，进行内存大小的增减
+     */
     private static final class InstrumentedUnpooledUnsafeHeapByteBuf extends UnpooledUnsafeHeapByteBuf {
         InstrumentedUnpooledUnsafeHeapByteBuf(UnpooledByteBufAllocator alloc, int initialCapacity, int maxCapacity) {
             super(alloc, initialCapacity, maxCapacity);
@@ -154,6 +163,10 @@ public final class UnpooledByteBufAllocator extends AbstractByteBufAllocator imp
         }
     }
 
+    /**
+     * TODO:装饰模式 增加了某些装置的UnpooledHeapByteBuf
+     * 装饰功能：在分配内存和释放内存时，分别调用ByteBufAllocatorMetric的内存监控器，进行内存大小的增减
+     */
     private static final class InstrumentedUnpooledHeapByteBuf extends UnpooledHeapByteBuf {
         InstrumentedUnpooledHeapByteBuf(UnpooledByteBufAllocator alloc, int initialCapacity, int maxCapacity) {
             super(alloc, initialCapacity, maxCapacity);
@@ -183,6 +196,7 @@ public final class UnpooledByteBufAllocator extends AbstractByteBufAllocator imp
 
         @Override
         protected ByteBuffer allocateDirect(int initialCapacity) {
+            // 反射，直接创建 ByteBuffer 对象。并且该对象不带 Cleaner 对象
             ByteBuffer buffer = super.allocateDirect(initialCapacity);
             ((UnpooledByteBufAllocator) alloc()).incrementDirect(buffer.capacity());
             return buffer;
@@ -198,6 +212,7 @@ public final class UnpooledByteBufAllocator extends AbstractByteBufAllocator imp
 
         @Override
         protected void freeDirect(ByteBuffer buffer) {
+            // 直接释放 ByteBuffer 对象
             int capacity = buffer.capacity();
             super.freeDirect(buffer);
             ((UnpooledByteBufAllocator) alloc()).decrementDirect(capacity);
@@ -220,6 +235,7 @@ public final class UnpooledByteBufAllocator extends AbstractByteBufAllocator imp
         @Override
         protected void freeDirect(ByteBuffer buffer) {
             int capacity = buffer.capacity();
+            // 通过CLEANER 释放 ByteBuffer 对象
             super.freeDirect(buffer);
             ((UnpooledByteBufAllocator) alloc()).decrementDirect(capacity);
         }
@@ -246,7 +262,9 @@ public final class UnpooledByteBufAllocator extends AbstractByteBufAllocator imp
         }
     }
 
+    // 内存监控实现
     private static final class UnpooledByteBufAllocatorMetric implements ByteBufAllocatorMetric {
+        // 使用并发安全的Long类型计数器，统计内存大小
         final LongCounter directCounter = PlatformDependent.newLongCounter();
         final LongCounter heapCounter = PlatformDependent.newLongCounter();
 

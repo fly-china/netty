@@ -23,6 +23,9 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
+ * 使用的是Netty 线程池工厂创建的线程，是Netty包装后的Runnable：FastThreadLocalRunnable
+ * 搭配 Netty 的 FastThreadLocal，性能非常好，同时解决了JDK自带ThreadLocal内存泄漏的风险
+ *
  * A {@link ThreadFactory} implementation with a simple naming rule.
  */
 public class DefaultThreadFactory implements ThreadFactory {

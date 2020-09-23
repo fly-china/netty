@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.WeakHashMap;
 
 /**
+ * 存储Netty和所有FastThreadLocal线程局部变量的内部数据结构
  * The internal data structure that stores the thread-local variables for Netty and all {@link FastThreadLocal}s.
  * Note that this class is for internal use only and is subject to change at any time.  Use {@link FastThreadLocal}
  * unless you know what you are doing.
@@ -74,6 +75,9 @@ public final class InternalThreadLocalMap extends UnpaddedInternalThreadLocalMap
         }
     }
 
+    /**
+     * 在netty自定义的FastThreadLocalThread中，创建和获取InternalThreadLocalMap
+     */
     private static InternalThreadLocalMap fastGet(FastThreadLocalThread thread) {
         InternalThreadLocalMap threadLocalMap = thread.threadLocalMap();
         if (threadLocalMap == null) {
@@ -82,6 +86,10 @@ public final class InternalThreadLocalMap extends UnpaddedInternalThreadLocalMap
         return threadLocalMap;
     }
 
+    /**
+     * 为了提高性能，Netty 还是避免使用了JDK 的 threadLocalMap
+     * 曲线救国：在JDK 的 threadLocal 中设置 Netty 的 InternalThreadLocalMap ，然后，这个 InternalThreadLocalMap 中设置 Netty 的 FastThreadLcoal。
+     */
     private static InternalThreadLocalMap slowGet() {
         ThreadLocal<InternalThreadLocalMap> slowThreadLocalMap = UnpaddedInternalThreadLocalMap.slowThreadLocalMap;
         InternalThreadLocalMap ret = slowThreadLocalMap.get();
@@ -127,6 +135,7 @@ public final class InternalThreadLocalMap extends UnpaddedInternalThreadLocalMap
     }
 
     private static Object[] newIndexedVariableTable() {
+        // 填充32 个空对象的引用
         Object[] array = new Object[32];
         Arrays.fill(array, UNSET);
         return array;
@@ -295,10 +304,12 @@ public final class InternalThreadLocalMap extends UnpaddedInternalThreadLocalMap
     public boolean setIndexedVariable(int index, Object value) {
         Object[] lookup = indexedVariables;
         if (index < lookup.length) {
+            // 小于当前数组长度（默认：32），则设置新value。如果原来的对象也是UNSET空对象，则返回 true
             Object oldValue = lookup[index];
             lookup[index] = value;
             return oldValue == UNSET;
         } else {
+            // 和HashMap#tableSizeFor扩容算法相同，扩容2倍。再set值
             expandIndexedVariableTableAndSet(index, value);
             return true;
         }

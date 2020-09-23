@@ -39,18 +39,26 @@ import static io.netty.util.internal.StringUtil.EMPTY_STRING;
 import static io.netty.util.internal.StringUtil.NEWLINE;
 import static io.netty.util.internal.StringUtil.simpleClassName;
 
+/**
+ * 内存泄露检测器
+ *
+ * 使用了 WeakReference( 弱引用 )和 ReferenceQueue( 引用队列 )，过程如下：
+ * 1、根据检测级别和采样率的设置，在需要时为需要检测的 ByteBuf 创建WeakReference 引用。
+ * 2、当 JVM 回收掉 ByteBuf 对象时，JVM 会将 WeakReference 放入ReferenceQueue 队列中。
+ * 3、通过对 ReferenceQueue 中 WeakReference 的检查，判断在 GC 前是否有释放ByteBuf 的资源，就可以知道是否有资源释放。
+ */
 public class ResourceLeakDetector<T> {
 
     private static final String PROP_LEVEL_OLD = "io.netty.leakDetectionLevel";
     private static final String PROP_LEVEL = "io.netty.leakDetection.level";
-    private static final Level DEFAULT_LEVEL = Level.SIMPLE;
+    private static final Level DEFAULT_LEVEL = Level.SIMPLE;// 默认的：内存泄漏检测级别
 
     private static final String PROP_TARGET_RECORDS = "io.netty.leakDetection.targetRecords";
-    private static final int DEFAULT_TARGET_RECORDS = 4;
+    private static final int DEFAULT_TARGET_RECORDS = 4; //默认：每个 DefaultResourceLeak 记录的 Record 数量
 
     private static final String PROP_SAMPLING_INTERVAL = "io.netty.leakDetection.samplingInterval";
     // There is a minor performance benefit in TLR if this is a power of 2.
-    private static final int DEFAULT_SAMPLING_INTERVAL = 128;
+    private static final int DEFAULT_SAMPLING_INTERVAL = 128;//默认：采样频率
 
     private static final int TARGET_RECORDS;
     static final int SAMPLING_INTERVAL;
@@ -60,20 +68,24 @@ public class ResourceLeakDetector<T> {
      */
     public enum Level {
         /**
+         * 完全禁止泄露检测，省点消耗。（不建议）
          * Disables resource leak detection.
          */
         DISABLED,
         /**
+         * 启用最简单的采样资源泄漏检测，
          * Enables simplistic sampling resource leak detection which reports there is a leak or not,
          * at the cost of small overhead (default).
          */
         SIMPLE,
         /**
+         * 启用高级采样资源泄漏检测，可以报告最近访问了泄漏对象的位置，但代价很高。随机概率( 默认为 1% 左右 )
          * Enables advanced sampling resource leak detection which reports where the leaked object was accessed
          * recently at the cost of high overhead.
          */
         ADVANCED,
         /**
+         * 启用偏执狂热采样资源泄漏检测，可以报告最近访问了泄漏对象的位置，但代价最高（通常仅用来测试）
          * Enables paranoid resource leak detection which reports where the leaked object was accessed recently,
          * at the cost of the highest possible overhead (for testing purposes only).
          */
@@ -164,10 +176,15 @@ public class ResourceLeakDetector<T> {
     }
 
     /** the collection of active resources */
+    /**
+     * DefaultResourceLeak 集合，value 属性实际没有任何用途
+     * 因为 Java 没有自带的 ConcurrentSet ，所以只好使用使用 ConcurrentMap
+      */
     private final Set<DefaultResourceLeak<?>> allLeaks =
             Collections.newSetFromMap(new ConcurrentHashMap<DefaultResourceLeak<?>, Boolean>());
 
-    private final ReferenceQueue<Object> refQueue = new ReferenceQueue<Object>();
+    private final ReferenceQueue<Object> refQueue = new ReferenceQueue<Object>();// 引用队列
+    // 已汇报的内存泄露的资源类型的集合
     private final ConcurrentMap<String, Boolean> reportedLeaks = PlatformDependent.newConcurrentHashMap();
 
     private final String resourceType;
@@ -241,6 +258,7 @@ public class ResourceLeakDetector<T> {
     }
 
     /**
+     * 创建一个资源泄漏追踪器ResourceLeakTracker，当相关资源被回收时，调用ResourceLeakTracker#close
      * Creates a new {@link ResourceLeakTracker} which is expected to be closed via
      * {@link ResourceLeakTracker#close(Object)} when the related resource is deallocated.
      *
@@ -259,16 +277,24 @@ public class ResourceLeakDetector<T> {
         }
 
         if (level.ordinal() < Level.PARANOID.ordinal()) {
+            // 随机（如果按默认值，概率为：1/128）
             if ((PlatformDependent.threadLocalRandom().nextInt(samplingInterval)) == 0) {
+                // 汇报内存是否泄漏
                 reportLeak();
+                // 创建 DefaultResourceLeak 对象
                 return new DefaultResourceLeak(obj, refQueue, allLeaks);
             }
             return null;
         }
+
+        // PARANOID模式下，每次汇报并创建DefaultResourceLeak。所以影响性能
         reportLeak();
         return new DefaultResourceLeak(obj, refQueue, allLeaks);
     }
 
+    /**
+     * 清理 引用队列
+     */
     private void clearRefQueue() {
         for (;;) {
             @SuppressWarnings("unchecked")
@@ -280,13 +306,17 @@ public class ResourceLeakDetector<T> {
         }
     }
 
+    /**
+     * TODO:汇报内存泄漏
+     */
     private void reportLeak() {
+        // 如果不允许打印ERROR日志，则无法汇报，清理队列，并直接结束
         if (!logger.isErrorEnabled()) {
             clearRefQueue();
             return;
         }
 
-        // Detect and report previous leaks.
+        // Detect and report previous leaks.检查和汇报先前的泄漏
         for (;;) {
             @SuppressWarnings("unchecked")
             DefaultResourceLeak ref = (DefaultResourceLeak) refQueue.poll();
@@ -294,12 +324,16 @@ public class ResourceLeakDetector<T> {
                 break;
             }
 
-            if (!ref.dispose()) {
+            // 清理引用对象，并返回是否泄漏
+            if (!ref.dispose()) {//return allLeaks.remove(this);
+                // 回收对象没有在allLeaks中，没有泄漏，则继续循环
                 continue;
             }
 
             String records = ref.toString();
+            // 相同 Record 日志，只汇报一次
             if (reportedLeaks.putIfAbsent(records, Boolean.TRUE) == null) {
+                // 首次泄漏，汇报
                 if (records.isEmpty()) {
                     reportUntracedLeak(resourceType);
                 } else {
@@ -366,6 +400,11 @@ public class ResourceLeakDetector<T> {
                 Object referent,
                 ReferenceQueue<Object> refQueue,
                 Set<DefaultResourceLeak<?>> allLeaks) {
+            /*
+             * 关联弱引用和引用队列
+             * referent 被标记为垃圾的时候，它对应的 WeakReference 对象会被添加到 refQueue 队列中
+             * referent来自于io.netty.util.ResourceLeakDetector.track0(T obj)
+             */
             super(referent, refQueue);
 
             assert referent != null;
@@ -445,11 +484,18 @@ public class ResourceLeakDetector<T> {
             }
         }
 
+        // 清理，并返回是否内存泄露
         boolean dispose() {
             clear();
+            // 移除出 allLeaks 。移除成功，意味着内存泄露
             return allLeaks.remove(this);
         }
 
+
+        /**
+         * 从ResourceLeakDetector.allLeaks 中移除此弱引用对象。并将弱引用对象标记为null，方便回收
+         * TODO:正常ByteBuf对象，release()到0->closeLeak()->至此，会将其正常回收。不会被内存泄漏探测器报告
+         */
         @Override
         public boolean close() {
             if (allLeaks.remove(this)) {

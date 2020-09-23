@@ -26,6 +26,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 /**
+ * EventExecutor接口的带scheduling调度的抽象实现
+ *
  * Abstract base class for {@link EventExecutor}s that want to support scheduling.
  */
 public abstract class AbstractScheduledEventExecutor extends AbstractEventExecutor {
@@ -107,6 +109,7 @@ public abstract class AbstractScheduledEventExecutor extends AbstractEventExecut
             return null;
         }
 
+        // deadline时长 < 已流失时长，任务可以执行了
         if (scheduledTask.deadlineNanos() <= nanoTime) {
             scheduledTaskQueue.remove();
             return scheduledTask;

@@ -20,6 +20,7 @@ import io.netty.util.internal.UnstableApi;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
+ * 默认实现。使用简单的循环来选择next的EventExecutor
  * Default implementation which uses simple round-robin to choose next {@link EventExecutor}.
  */
 @UnstableApi
@@ -38,9 +39,18 @@ public final class DefaultEventExecutorChooserFactory implements EventExecutorCh
             return new GenericEventExecutorChooser(executors);
         }
     }
-
+    // 是否2的幂次方!!!妙啊！！！
+    // 2 为幂次方的数字，都是最高位为 1 ，剩余位为 0 ，所以对应的负数，求完补码还是自己
     private static boolean isPowerOfTwo(int val) {
         return (val & -val) == val;
+    }
+
+    public static void main(String[] args) {
+        int val = 8;
+        for (int i = 0; i < val; i++) {
+            System.out.println(i + "---" + (i & val - 1));
+        }
+
     }
 
     private static final class PowerOfTwoEventExecutorChooser implements EventExecutorChooser {
@@ -51,6 +61,12 @@ public final class DefaultEventExecutorChooserFactory implements EventExecutorCh
             this.executors = executors;
         }
 
+        // 0000     0001      0010       0011
+        // 0111     0111      0111       0111
+        //   0        1         2          3
+
+        // 加减乘除的优先级高于 位运算的优先级
+        // next()顺序将是0、1、2、3....(n - 1)
         @Override
         public EventExecutor next() {
             return executors[idx.getAndIncrement() & executors.length - 1];
