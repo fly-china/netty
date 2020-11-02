@@ -1,4 +1,4 @@
-package io.netty.example.udp;
+package io.netty.example.amazing.logBroadcaster;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;

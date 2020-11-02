@@ -16,6 +16,7 @@
 package io.netty.util;
 
 /**
+ * 一个与{@link TimerTask}相关联的句柄，由{@link Timer}返回。
  * A handle associated with a {@link TimerTask} that is returned by a
  * {@link Timer}.
  */

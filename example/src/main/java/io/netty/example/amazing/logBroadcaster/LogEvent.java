@@ -1,4 +1,4 @@
-package io.netty.example.udp;
+package io.netty.example.amazing.logBroadcaster;
 
 import java.net.InetSocketAddress;
 

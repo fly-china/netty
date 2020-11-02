@@ -36,15 +36,20 @@ import java.util.concurrent.atomic.AtomicLong;
 import static io.netty.util.internal.StringUtil.simpleClassName;
 
 /**
+ * 近似I/O超时调度优化的 Timer
  * A {@link Timer} optimized for approximated I/O timeout scheduling.
  *
- * <h3>Tick Duration</h3>
+ * <h3>Tick Duration </h3>
  *
+ * 正像描述说的“近似”，Timer不保证一定及时执行调度任务。HashedWheelTimer会在每次执行时，会检查是否有落后于此次调度的TimerTask，并执行他们
  * As described with 'approximated', this timer does not execute the scheduled
  * {@link TimerTask} on time.  {@link HashedWheelTimer}, on every tick, will
  * check if there are any {@link TimerTask}s behind the schedule and execute
  * them.
  * <p>
+ *
+ * 你可以增加或减少执行时间的准确性，通过在构造方法中指定更小或更大的Tick间隔。
+ * 在大多数网络应用中，IO超时不需要精确。因此，默认的Tick间隔是100毫秒，在大多数情况下不需要尝试不同的配置。
  * You can increase or decrease the accuracy of the execution timing by
  * specifying smaller or larger tick duration in the constructor.  In most
  * network applications, I/O timeout does not need to be accurate.  Therefore,
@@ -52,21 +57,23 @@ import static io.netty.util.internal.StringUtil.simpleClassName;
  * different configurations in most cases.
  *
  * <h3>Ticks per Wheel (Wheel Size)</h3>
- *
+ * HashedWheelTimer维持了一个叫'wheel'的数据结构。简言之，wheel就是由TimerTask组成的hash表，哈希函数是“任务执行的deadline”。
+ * 每个wheel默认的ticks数量为：512. 你可以指定一个更大的值，如果你准备调度更大量级的任务
  * {@link HashedWheelTimer} maintains a data structure called 'wheel'.
  * To put simply, a wheel is a hash table of {@link TimerTask}s whose hash
  * function is 'dead line of the task'.  The default number of ticks per wheel
  * (i.e. the size of the wheel) is 512.  You could specify a larger value
  * if you are going to schedule a lot of timeouts.
  *
- * <h3>Do not create many instances.</h3>
- *
+ * <h3>Do not create many instances.</h3> 不要过多创建实例
+ * HashedWheelTimer在实例化和启动时创建一个新线程。因此，应该保证你的整个应用中仅仅创建一个共享公用实例。
+ * 一个常见的错误就是：如果为每个连接都创建一个实例， 过多的实例会导致你的应用无法响应
  * {@link HashedWheelTimer} creates a new thread whenever it is instantiated and
  * started.  Therefore, you should make sure to create only one instance and
  * share it across your application.  One of the common mistakes, that makes
  * your application unresponsive, is to create a new instance for every connection.
  *
- * <h3>Implementation Details</h3>
+ * <h3>Implementation Details</h3> 实现细节
  *
  * {@link HashedWheelTimer} is based on
  * <a href="http://cseweb.ucsd.edu/users/varghese/">George Varghese</a> and
@@ -102,7 +109,7 @@ public class HashedWheelTimer implements Timer {
     private volatile int workerState; // 0 - init, 1 - started, 2 - shut down
 
     private final long tickDuration;
-    private final HashedWheelBucket[] wheel;
+    private final HashedWheelBucket[] wheel; //
     private final int mask;
     private final CountDownLatch startTimeInitialized = new CountDownLatch(1);
     private final Queue<HashedWheelTimeout> timeouts = PlatformDependent.newMpscQueue();
@@ -126,7 +133,7 @@ public class HashedWheelTimer implements Timer {
      * ({@link Executors#defaultThreadFactory()}) and default number of ticks
      * per wheel.
      *
-     * @param tickDuration   the duration between tick
+     * @param tickDuration   the duration between tick 两次定时任务的时间间隔
      * @param unit           the time unit of the {@code tickDuration}
      * @throws NullPointerException     if {@code unit} is {@code null}
      * @throws IllegalArgumentException if {@code tickDuration} is &lt;= 0
@@ -186,7 +193,7 @@ public class HashedWheelTimer implements Timer {
      *                       {@link TimerTask} execution.
      * @param tickDuration   the duration between tick
      * @param unit           the time unit of the {@code tickDuration}
-     * @param ticksPerWheel  the size of the wheel
+     * @param ticksPerWheel  the size of the wheel 每个wheel默认的ticks数量为：512. 你可以指定一个更大的值，如果你准备调度更大量级的任务
      * @throws NullPointerException     if either of {@code threadFactory} and {@code unit} is {@code null}
      * @throws IllegalArgumentException if either of {@code tickDuration} and {@code ticksPerWheel} is &lt;= 0
      */
@@ -234,6 +241,7 @@ public class HashedWheelTimer implements Timer {
      *                             {@link java.util.concurrent.RejectedExecutionException}
      *                             being thrown. No maximum pending timeouts limit is assumed if
      *                             this value is 0 or negative.
+     *                             调用 newTimeout 将导致抛出RejectedExecutionException的等待超时的最大数目。如果该值为0或负值，则不假定最大挂起超时限制。
      * @throws NullPointerException     if either of {@code threadFactory} and {@code unit} is {@code null}
      * @throws IllegalArgumentException if either of {@code tickDuration} and {@code ticksPerWheel} is &lt;= 0
      */
@@ -256,19 +264,21 @@ public class HashedWheelTimer implements Timer {
         }
 
         // Normalize ticksPerWheel to power of two and initialize the wheel.
+        // 将时间轮的大小规范化到2的n次方，并进行WheelBucket数组的初始化。这样可以用位运算来处理mod操作，提高效率
         wheel = createWheel(ticksPerWheel);
         mask = wheel.length - 1;
 
-        // Convert tickDuration to nanos.
+        // Convert tickDuration to nanos. 时间单位统一使用纳秒
         long duration = unit.toNanos(tickDuration);
 
-        // Prevent overflow.
+        // Prevent overflow. 防止溢出
         if (duration >= Long.MAX_VALUE / wheel.length) {
             throw new IllegalArgumentException(String.format(
                     "tickDuration: %d (expected: 0 < tickDuration in nanos < %d",
                     tickDuration, Long.MAX_VALUE / wheel.length));
         }
 
+        // 时间间隔至少要1毫秒
         if (duration < MILLISECOND_NANOS) {
             if (logger.isWarnEnabled()) {
                 logger.warn("Configured tickDuration %d smaller then %d, using 1ms.",
@@ -278,13 +288,13 @@ public class HashedWheelTimer implements Timer {
         } else {
             this.tickDuration = duration;
         }
-
+        // 创建worker线程
         workerThread = threadFactory.newThread(worker);
-
+        // 处理泄露监控
         leak = leakDetection || !workerThread.isDaemon() ? leakDetector.track(this) : null;
-
+        // 设置最大等待任务数
         this.maxPendingTimeouts = maxPendingTimeouts;
-
+        // 实例个数+1,并防止过多实例数的创建
         if (INSTANCE_COUNTER.incrementAndGet() > INSTANCE_COUNT_LIMIT &&
             WARNED_TOO_MANY_INSTANCES.compareAndSet(false, true)) {
             reportTooManyInstances();
@@ -607,6 +617,7 @@ public class HashedWheelTimer implements Timer {
 
         // remainingRounds will be calculated and set by Worker.transferTimeoutsToBuckets() before the
         // HashedWheelTimeout will be added to the correct HashedWheelBucket.
+        // 在HashedWheelTimeout被添加到正确的HashedWheelBucket之前，remainingRounds将由 Worker.transferTimeoutsToBuckets()计算和设置。
         long remainingRounds;
 
         // This will be used to chain timeouts in HashedWheelTimerBucket via a double-linked-list.
@@ -718,6 +729,8 @@ public class HashedWheelTimer implements Timer {
     }
 
     /**
+     * Bucket是用来存储 HashedWheelTimeouts 的。它们存储在一个链表式的数据结构中，以便轻松删除中间的 HashedWheelTimeouts。
+     * HashedWheelTimeout本身充当节点，因此不需要创建额外的对象。
      * Bucket that stores HashedWheelTimeouts. These are stored in a linked-list like datastructure to allow easy
      * removal of HashedWheelTimeouts in the middle. Also the HashedWheelTimeout act as nodes themself and so no
      * extra object creation is needed.
