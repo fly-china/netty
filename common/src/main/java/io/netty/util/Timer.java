@@ -20,6 +20,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 
 /**
+ * 调度 TimerTask 用于将来在后台线程中一次性执行。
  * Schedules {@link TimerTask}s for one-time future execution in a background
  * thread.
  */

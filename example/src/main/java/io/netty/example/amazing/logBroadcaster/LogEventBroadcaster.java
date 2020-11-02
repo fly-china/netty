@@ -1,11 +1,10 @@
-package io.netty.example.udp;
+package io.netty.example.amazing.logBroadcaster;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
-import io.netty.channel.nio.NioEventLoop;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioDatagramChannel;
 
@@ -30,14 +29,14 @@ public class LogEventBroadcaster {
         bootstrap = new Bootstrap();
         bootstrap.group(group)
                 .channel(NioDatagramChannel.class)
-                .option(ChannelOption.SO_BROADCAST, true)
+                .option(ChannelOption.SO_BROADCAST, true) //   Socket参数，设置广播模式
                 .handler(new LogEventEncoder(address));
         this.file = file;
     }
 
     public static void main(String[] args) {
         int port = 9999;
-        File logfile = new File("C:\\Users\\fei\\Desktop\\logfile.txt");
+        File logfile = new File("C:\\Users\\Administrator\\Desktop\\logfile.txt");
         // 255.255.255.255为当前子网的广播地址
         InetSocketAddress address = new InetSocketAddress("255.255.255.255",port);
         LogEventBroadcaster broadcaster = new LogEventBroadcaster(address, logfile);

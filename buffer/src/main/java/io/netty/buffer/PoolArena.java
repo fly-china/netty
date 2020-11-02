@@ -19,7 +19,6 @@ package io.netty.buffer;
 import io.netty.util.internal.LongCounter;
 import io.netty.util.internal.PlatformDependent;
 import io.netty.util.internal.StringUtil;
-import sun.jvm.hotspot.debugger.Page;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
