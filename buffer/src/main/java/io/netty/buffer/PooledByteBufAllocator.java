@@ -34,7 +34,7 @@ import java.util.List;
 
 /**
  * 使用池化的ByteBuf分配器
- * TODO：使用到了超牛逼Jemalloc算法思想
+ * TODO：使用到了Jemalloc的内存分配算法思想
  */
 public class PooledByteBufAllocator extends AbstractByteBufAllocator implements ByteBufAllocatorMetricProvider {
 

@@ -22,6 +22,11 @@ import io.netty.util.internal.ObjectUtil;
 
 import java.nio.ByteOrder;
 
+/**
+ * 内部有有两个核心点，实现内存泄漏追踪
+ * 1、ResourceLeakTracker<ByteBuf> leak；内存泄漏追踪
+ * 2、重写release()方法，如果refCnt=0，调用closeLeak()方法，关闭 ResourceLeakTracker。
+ */
 class SimpleLeakAwareByteBuf extends WrappedByteBuf {
 
     /**

@@ -52,7 +52,7 @@ public abstract class AbstractByteBufAllocator implements ByteBufAllocator {
             case PARANOID:
                 leak = AbstractByteBuf.leakDetector.track(buf);
                 if (leak != null) {
-                    buf = new AdvancedLeakAwareByteBuf(buf, leak);
+                   // buf = new AdvancedLeakAwareByteBuf(buf, leak);
                 }
                 break;
             default:

@@ -428,6 +428,12 @@ final class PoolThreadCache {
 
         MemoryRegionCache(int size, SizeClass sizeClass) {
             this.size = MathUtil.safeFindNextPositivePowerOfTwo(size);
+            /**
+             * Multi-Producer-Single-Consumer的队列
+             * 之所以使用这种类型的队列是因为：
+             * ByteBuf的分配和释放可能在不同的线程中，这里的多生产者即多个不同的释放线程，
+             * 这样才能保证多个释放线程同时释放ByteBuf时所占空间正确添加到队列中
+             */
             queue = PlatformDependent.newFixedMpscQueue(this.size);
             this.sizeClass = sizeClass;
         }
@@ -439,7 +445,7 @@ final class PoolThreadCache {
                                         PooledByteBuf<T> buf, int reqCapacity);
 
         /**
-         * 如果缓存队列queue还没有满，则假如队列中
+         * 如果缓存队列queue还没有满，则加入队列中
          * Add to cache if not already full.
          */
         @SuppressWarnings("unchecked")
@@ -455,7 +461,7 @@ final class PoolThreadCache {
         }
 
         /**
-         * 从缓存队列中取出一个缓存内存快节点，方便使用
+         * 从缓存队列中取出一个缓存内存块节点，方便使用
          * Allocate something out of the cache if possible and remove the entry from the cache.
          */
         public final boolean allocate(PooledByteBuf<T> buf, int reqCapacity) {

@@ -23,7 +23,7 @@ public class TestPooledAllocator {
     private static final int tinyMem = 496;          // [16B, 512B]
     private static final int smallMem = 4 * 1024;    // [512B, 4MB]
     private static final int normalMem = 8 * 1024;   // [8KB, 16MB]
-    private static final int hugeMem = 16 * 1024 * 1024; // [32MB, more)
+    private static final int hugeMem = 17 * 1024 * 1024; // (16MB, more)
 
     public static void main(String[] args) throws Exception {
 
@@ -36,7 +36,10 @@ public class TestPooledAllocator {
 //        testAllocateNormal(pooledAllocator);
 
         // 测试分配SubPage内存块：先分配16B,再分配32B，最后再分配16B
-        testAllocateSubPage(pooledAllocator);
+//        testAllocateSubPage(pooledAllocator);
+
+        // 测试分配Huge内存块
+        ByteBuf byteBuf = pooledAllocator.buffer(hugeMem);
 
 
     }
@@ -57,6 +60,13 @@ public class TestPooledAllocator {
         testAllocate(pooledAllocator, normalMem);
         testAllocate(pooledAllocator, normalMem * 2);
         testAllocate(pooledAllocator, normalMem);
+    }
+
+    /**
+     * 测试分配Huge内存块
+     */
+    public static void testAllocateNHuge(PooledByteBufAllocator pooledAllocator) {
+        testAllocate(pooledAllocator, hugeMem);
     }
 
 
