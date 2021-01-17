@@ -369,6 +369,7 @@ final class PooledUnsafeDirectByteBuf extends PooledByteBuf<ByteBuffer> {
 
     // initMemoryAddress方法中，已将offset加到内存地址后
     private long addr(int index) {
+        // memoryAddress = PlatformDependent.directBufferAddress(memory) + offset;
         return memoryAddress + index;
     }
 

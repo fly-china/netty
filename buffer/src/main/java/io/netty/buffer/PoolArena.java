@@ -81,7 +81,7 @@ abstract class PoolArena<T> implements PoolArenaMetric {
     // We need to use the LongCounter here as this is not guarded via synchronized block.
     private final LongCounter deallocationsHuge = PlatformDependent.newLongCounter(); // 释放 Huge 内存块的次数
 
-    // Number of thread caches backed by this arena. 该 PoolArena 被多少线程引用的计数器
+    // Number of thread caches backed by this arena. 该 PoolArena 被多少线程引用的计数器（被多少个线程在同时使用）
     final AtomicInteger numThreadCaches = new AtomicInteger();
 
     // TODO: Test if adding padding helps under contention
@@ -272,7 +272,7 @@ abstract class PoolArena<T> implements PoolArenaMetric {
     }
 
     /**
-     * Method must be called inside synchronized(this) { ... } block 该方法必须在synchronized同步块内执行
+     * Method must be called inside synchronized(this) { ... } block 该方法必须在synchronized同步块内执行
      * q000是用来保存内存利用率在1%-50%的chunk，那么这里为什么不包括0%的chunk？
      * 直接弄清楚这些，才好理解为什么不从q000开始分配。q000中的chunk，当内存利用率为0时，就从链表中删除，直接释放物理内存，避免越来越多的chunk导致内存被占满。
      * <p>

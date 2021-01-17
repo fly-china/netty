@@ -1,8 +1,11 @@
 package io.netty.example.amazing;
 
+import static java.util.Optional.ofNullable;
+
 import io.netty.buffer.*;
 import io.netty.util.CharsetUtil;
 import io.netty.util.internal.PlatformDependent;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,11 +36,10 @@ public class TestPooledAllocator {
         System.out.println("-----------------------");
 
         // 测试分配Normal内存块：先分配8KB,再分配16KB，最后再分配8KB
-//        testAllocateNormal(pooledAllocator);
+        //        testAllocateNormal(pooledAllocator);
 
         // 测试分配SubPage内存块：先分配16B,再分配32B，最后再分配16B
         testAllocateSubPage(pooledAllocator);
-
 
     }
 
