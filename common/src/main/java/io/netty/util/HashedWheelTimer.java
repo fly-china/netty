@@ -351,17 +351,21 @@ public class HashedWheelTimer implements Timer {
         switch (WORKER_STATE_UPDATER.get(this)) {
             case WORKER_STATE_INIT:
                 if (WORKER_STATE_UPDATER.compareAndSet(this, WORKER_STATE_INIT, WORKER_STATE_STARTED)) {
+                    // 如果CAS更新线程状态：从INIT -> STARTED,那就启动线程
                     workerThread.start();
                 }
                 break;
+            // 如果已启动，什么都不用做
             case WORKER_STATE_STARTED:
                 break;
+            // 如果已停止，抛异常
             case WORKER_STATE_SHUTDOWN:
                 throw new IllegalStateException("cannot be started once stopped");
             default:
                 throw new Error("Invalid WorkerState");
         }
 
+        // 同步等待worker线程启动并完成startTime初始化的工作
         // Wait until the startTime is initialized by the worker.
         while (startTime == 0) {
             try {

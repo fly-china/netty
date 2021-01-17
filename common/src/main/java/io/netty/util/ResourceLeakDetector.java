@@ -324,7 +324,13 @@ public class ResourceLeakDetector<T> {
                 break;
             }
 
-            // 清理引用对象，并返回是否泄漏
+            /**
+             * TODO:ref存在，说明对象已经被回收，进入了引用队列refQueue。
+             *  如果：
+             *      1、 allLeaks集合中无此对象，说明对象release()到0->closeLeak()->DefaultResourceLeak#close()，正常释放，无内存泄漏
+             *      2、 allLeaks集合有无此对象，说明对象未release()，会存在内存泄漏
+             */
+            //  清理引用对象，并返回是否泄漏
             if (!ref.dispose()) {//return allLeaks.remove(this);
                 // 回收对象没有在allLeaks中，没有泄漏，则继续循环
                 continue;
@@ -495,6 +501,7 @@ public class ResourceLeakDetector<T> {
         /**
          * 从ResourceLeakDetector.allLeaks 中移除此弱引用对象。并将弱引用对象标记为null，方便回收
          * TODO:正常ByteBuf对象，release()到0->closeLeak()->至此，会将其正常回收。不会被内存泄漏探测器报告
+         * close()后，allLeaks集合中无此对象，引用队列中有此对象。
          */
         @Override
         public boolean close() {
