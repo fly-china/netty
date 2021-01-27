@@ -50,7 +50,6 @@ public final class DefaultEventExecutorChooserFactory implements EventExecutorCh
         for (int i = 0; i < val; i++) {
             System.out.println(i + "---" + (i & val - 1));
         }
-
     }
 
     private static final class PowerOfTwoEventExecutorChooser implements EventExecutorChooser {

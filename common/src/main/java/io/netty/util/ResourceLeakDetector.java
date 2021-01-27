@@ -41,7 +41,7 @@ import static io.netty.util.internal.StringUtil.simpleClassName;
 
 /**
  * 内存泄露检测器
- *
+ * <p>
  * 使用了 WeakReference( 弱引用 )和 ReferenceQueue( 引用队列 )，过程如下：
  * 1、根据检测级别和采样率的设置，在需要时为需要检测的 ByteBuf 创建WeakReference 引用。
  * 2、当 JVM 回收掉 ByteBuf 对象时，JVM 会将 WeakReference 放入ReferenceQueue 队列中。
@@ -51,14 +51,14 @@ public class ResourceLeakDetector<T> {
 
     private static final String PROP_LEVEL_OLD = "io.netty.leakDetectionLevel";
     private static final String PROP_LEVEL = "io.netty.leakDetection.level";
-    private static final Level DEFAULT_LEVEL = Level.SIMPLE;// 默认的：内存泄漏检测级别
+    private static final Level DEFAULT_LEVEL = Level.SIMPLE; // 默认的：内存泄漏检测级别
 
     private static final String PROP_TARGET_RECORDS = "io.netty.leakDetection.targetRecords";
     private static final int DEFAULT_TARGET_RECORDS = 4; //默认：每个 DefaultResourceLeak 记录的 Record 数量
 
     private static final String PROP_SAMPLING_INTERVAL = "io.netty.leakDetection.samplingInterval";
     // There is a minor performance benefit in TLR if this is a power of 2.
-    private static final int DEFAULT_SAMPLING_INTERVAL = 128;//默认：采样频率
+    private static final int DEFAULT_SAMPLING_INTERVAL = 128; //默认：采样频率
 
     private static final int TARGET_RECORDS;
     static final int SAMPLING_INTERVAL;
@@ -124,7 +124,7 @@ public class ResourceLeakDetector<T> {
             disabled = false;
         }
 
-        Level defaultLevel = disabled? Level.DISABLED : DEFAULT_LEVEL;
+        Level defaultLevel = disabled ? Level.DISABLED : DEFAULT_LEVEL;
 
         // First read old property name
         String levelStr = SystemPropertyUtil.get(PROP_LEVEL_OLD, defaultLevel.name());
@@ -148,7 +148,7 @@ public class ResourceLeakDetector<T> {
      */
     @Deprecated
     public static void setEnabled(boolean enabled) {
-        setLevel(enabled? Level.SIMPLE : Level.DISABLED);
+        setLevel(enabled ? Level.SIMPLE : Level.DISABLED);
     }
 
     /**
@@ -179,11 +179,11 @@ public class ResourceLeakDetector<T> {
     /**
      * DefaultResourceLeak 集合，value 属性实际没有任何用途
      * 因为 Java 没有自带的 ConcurrentSet ，所以只好使用使用 ConcurrentMap
-      */
+     */
     private final Set<DefaultResourceLeak<?>> allLeaks =
             Collections.newSetFromMap(new ConcurrentHashMap<DefaultResourceLeak<?>, Boolean>());
 
-    private final ReferenceQueue<Object> refQueue = new ReferenceQueue<Object>();// 引用队列
+    private final ReferenceQueue<Object> refQueue = new ReferenceQueue<Object>(); // 引用队列
     // 已汇报的内存泄露的资源类型的集合
     private final ConcurrentMap<String, Boolean> reportedLeaks = PlatformDependent.newConcurrentHashMap();
 
@@ -207,13 +207,12 @@ public class ResourceLeakDetector<T> {
     }
 
     /**
+     * @param maxActive This is deprecated and will be ignored.
      * @deprecated Use {@link ResourceLeakDetector#ResourceLeakDetector(Class, int)}.
      * <p>
      * This should not be used directly by users of {@link ResourceLeakDetector}.
      * Please use {@link ResourceLeakDetectorFactory#newResourceLeakDetector(Class)}
      * or {@link ResourceLeakDetectorFactory#newResourceLeakDetector(Class, int, long)}
-     *
-     * @param maxActive This is deprecated and will be ignored.
      */
     @Deprecated
     public ResourceLeakDetector(Class<?> resourceType, int samplingInterval, long maxActive) {
@@ -231,9 +230,9 @@ public class ResourceLeakDetector<T> {
     }
 
     /**
+     * @param maxActive This is deprecated and will be ignored.
      * @deprecated use {@link ResourceLeakDetectorFactory#newResourceLeakDetector(Class, int, long)}.
      * <p>
-     * @param maxActive This is deprecated and will be ignored.
      */
     @Deprecated
     public ResourceLeakDetector(String resourceType, int samplingInterval, long maxActive) {
@@ -296,7 +295,7 @@ public class ResourceLeakDetector<T> {
      * 清理 引用队列
      */
     private void clearRefQueue() {
-        for (;;) {
+        for (; ; ) {
             @SuppressWarnings("unchecked")
             DefaultResourceLeak ref = (DefaultResourceLeak) refQueue.poll();
             if (ref == null) {
@@ -317,7 +316,7 @@ public class ResourceLeakDetector<T> {
         }
 
         // Detect and report previous leaks.检查和汇报先前的泄漏
-        for (;;) {
+        for (; ;) {
             @SuppressWarnings("unchecked")
             DefaultResourceLeak ref = (DefaultResourceLeak) refQueue.poll();
             if (ref == null) {
@@ -327,11 +326,11 @@ public class ResourceLeakDetector<T> {
             /**
              * TODO:ref存在，说明对象已经被回收，进入了引用队列refQueue。
              *  如果：
-             *      1、 allLeaks集合中无此对象，说明对象release()到0->closeLeak()->DefaultResourceLeak#close()，正常释放，无内存泄漏
-             *      2、 allLeaks集合有无此对象，说明对象未release()，会存在内存泄漏
+             *      1、 allLeaks集合中无此对象，说明对象 release()为0 -> closeLeak() -> DefaultResourceLeak#close()，正常释放，无内存泄漏
+             *      2、 allLeaks集合中有此对象，说明对象未release()，会存在内存泄漏
              */
             //  清理引用对象，并返回是否泄漏
-            if (!ref.dispose()) {//return allLeaks.remove(this);
+            if (!ref.dispose()) { //return allLeaks.remove(this);
                 // 回收对象没有在allLeaks中，没有泄漏，则继续循环
                 continue;
             }
@@ -356,7 +355,7 @@ public class ResourceLeakDetector<T> {
     protected void reportTracedLeak(String resourceType, String records) {
         logger.error(
                 "LEAK: {}.release() was not called before it's garbage-collected. " +
-                "See http://netty.io/wiki/reference-counted-objects.html for more information.{}",
+                        "See http://netty.io/wiki/reference-counted-objects.html for more information.{}",
                 resourceType, records);
     }
 
@@ -366,10 +365,10 @@ public class ResourceLeakDetector<T> {
      */
     protected void reportUntracedLeak(String resourceType) {
         logger.error("LEAK: {}.release() was not called before it's garbage-collected. " +
-                "Enable advanced leak reporting to find out where the leak occurred. " +
-                "To enable advanced leak reporting, " +
-                "specify the JVM option '-D{}={}' or call {}.setLevel() " +
-                "See http://netty.io/wiki/reference-counted-objects.html for more information.",
+                        "Enable advanced leak reporting to find out where the leak occurred. " +
+                        "To enable advanced leak reporting, " +
+                        "specify the JVM option '-D{}={}' or call {}.setLevel() " +
+                        "See http://netty.io/wiki/reference-counted-objects.html for more information.",
                 resourceType, PROP_LEVEL, Level.ADVANCED.name().toLowerCase(), simpleClassName(this));
     }
 
@@ -448,14 +447,14 @@ public class ResourceLeakDetector<T> {
          * <li>  It is easy to keep a precise record of the number of elements in the stack, since each element has to
          *     know how tall the stack is.
          * </ol>
-         *
+         * <p>
          * In this particular implementation, there are also some advantages. A thread local random is used to decide
          * if something should be recorded. This means that if there is a deterministic access pattern, it is now
          * possible to see what other accesses occur, rather than always dropping them. Second, after
          * {@link #TARGET_RECORDS} accesses, backoff occurs. This matches typical access patterns,
          * where there are either a high number of accesses (i.e. a cached buffer), or low (an ephemeral buffer), but
          * not many in between.
-         *
+         * <p>
          * The use of atomics avoids serializing a high number of accesses, when most of the records will be thrown
          * away. High contention only happens when there are very few existing records, which is only likely when the
          * object isn't shared! If this is a problem, the loop can be aborted and the record dropped, because another
@@ -530,7 +529,7 @@ public class ResourceLeakDetector<T> {
             }
         }
 
-         /**
+        /**
          * Ensures that the object referenced by the given reference remains
          * <a href="package-summary.html#reachability"><em>strongly reachable</em></a>,
          * regardless of any prior actions of the program that might otherwise cause
@@ -597,13 +596,13 @@ public class ResourceLeakDetector<T> {
 
             if (dropped > 0) {
                 buf.append(": ")
-                   .append(dropped)
-                   .append(" leak records were discarded because the leak record count is targeted to ")
-                   .append(TARGET_RECORDS)
-                   .append(". Use system property ")
-                   .append(PROP_TARGET_RECORDS)
-                   .append(" to increase the limit.")
-                   .append(NEWLINE);
+                        .append(dropped)
+                        .append(" leak records were discarded because the leak record count is targeted to ")
+                        .append(TARGET_RECORDS)
+                        .append(". Use system property ")
+                        .append(PROP_TARGET_RECORDS)
+                        .append(" to increase the limit.")
+                        .append(NEWLINE);
             }
 
             buf.setLength(buf.length() - NEWLINE.length());
@@ -614,7 +613,7 @@ public class ResourceLeakDetector<T> {
     private static final AtomicReference<String[]> excludedMethods =
             new AtomicReference<String[]>(EmptyArrays.EMPTY_STRINGS);
 
-    public static void addExclusions(Class clz, String ... methodNames) {
+    public static void addExclusions(Class clz, String... methodNames) {
         Set<String> nameSet = new HashSet<String>(Arrays.asList(methodNames));
         // Use loop rather than lookup. This avoids knowing the parameters, and doesn't have to handle
         // NoSuchMethodException.
@@ -655,9 +654,9 @@ public class ResourceLeakDetector<T> {
         }
 
         Record(Record next) {
-           hintString = null;
-           this.next = next;
-           this.pos = next.pos + 1;
+            hintString = null;
+            this.next = next;
+            this.pos = next.pos + 1;
         }
 
         // Used to terminate the stack
@@ -677,7 +676,8 @@ public class ResourceLeakDetector<T> {
             // Append the stack trace.
             StackTraceElement[] array = getStackTrace();
             // Skip the first three elements.
-            out: for (int i = 3; i < array.length; i++) {
+            out:
+            for (int i = 3; i < array.length; i++) {
                 StackTraceElement element = array[i];
                 // Strip the noisy stack trace elements.
                 String[] exclusions = excludedMethods.get();

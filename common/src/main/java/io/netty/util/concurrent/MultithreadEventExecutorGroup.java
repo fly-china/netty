@@ -136,7 +136,7 @@ public abstract class MultithreadEventExecutorGroup extends AbstractEventExecuto
 
         Set<EventExecutor> childrenSet = new LinkedHashSet<EventExecutor>(children.length);
         Collections.addAll(childrenSet, children);
-        readonlyChildren = Collections.unmodifiableSet(childrenSet);// 不可变的只读的EventExecutor集合
+        readonlyChildren = Collections.unmodifiableSet(childrenSet); // 不可变的只读的EventExecutor集合
     }
 
     protected ThreadFactory newDefaultThreadFactory() {
