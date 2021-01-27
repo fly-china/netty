@@ -1,7 +1,5 @@
 package io.netty.example.amazing;
 
-import static java.util.Optional.ofNullable;
-
 import io.netty.buffer.*;
 import io.netty.util.CharsetUtil;
 import io.netty.util.internal.PlatformDependent;
@@ -19,11 +17,10 @@ import java.util.List;
  * 非池化连接池：UnpooledByteBufAllocator.DEFAULT 或 UnPooled
  *
  * @author lipengfei
- * @create 2020-07-07 21:55
  **/
 public class TestPooledAllocator {
     private static final Logger logger = LoggerFactory.getLogger(TestPooledAllocator.class);
-    private static final int tinyMem = 496;          // [16B, 512B]
+    private static final int tinyMem = 496;          // [16B, 496B]
     private static final int smallMem = 4 * 1024;    // [512B, 4MB]
     private static final int normalMem = 8 * 1024;   // [8KB, 16MB]
     private static final int hugeMem = 17 * 1024 * 1024; // (16MB, more)
@@ -39,18 +36,25 @@ public class TestPooledAllocator {
         //        testAllocateNormal(pooledAllocator);
 
         // 测试分配SubPage内存块：先分配16B,再分配32B，最后再分配16B
-//        testAllocateSubPage(pooledAllocator);
+        //        testAllocateSubPage(pooledAllocator, true);
+        testAllocateSubPage(pooledAllocator, false);
 
         // 测试分配Huge内存块
-        ByteBuf byteBuf = pooledAllocator.buffer(hugeMem);
+        //        ByteBuf byteBuf = pooledAllocator.buffer(hugeMem);
 
+
+        //        testAllocateByThreadCache(pooledAllocator);
     }
 
     /**
      * 测试分配SubPage内存块：先分配16B,再分配32B，最后再分配16B
      */
-    public static void testAllocateSubPage(PooledByteBufAllocator pooledAllocator) {
-        testAllocate(pooledAllocator, 16);
+    public static void testAllocateSubPage(PooledByteBufAllocator pooledAllocator, boolean release) {
+        ByteBuf byteBuf = testAllocate(pooledAllocator, 160);
+        if (release) {
+            // 释放内存
+            byteBuf.release();
+        }
         testAllocate(pooledAllocator, 32);
         testAllocate(pooledAllocator, 16);
     }

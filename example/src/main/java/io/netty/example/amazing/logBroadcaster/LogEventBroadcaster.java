@@ -36,16 +36,16 @@ public class LogEventBroadcaster {
 
     public static void main(String[] args) {
         int port = 9999;
-        File logfile = new File("C:\\Users\\Administrator\\Desktop\\logfile.txt");
+        File logfile = new File("\\Users\\Administrator\\Desktop\\logfile.txt");
         // 255.255.255.255为当前子网的广播地址
-        InetSocketAddress address = new InetSocketAddress("255.255.255.255",port);
+        InetSocketAddress address = new InetSocketAddress("255.255.255.255", port);
         LogEventBroadcaster broadcaster = new LogEventBroadcaster(address, logfile);
 
-        try{
+        try {
             broadcaster.run();
-        }catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
-        }finally {
+        } finally {
             broadcaster.stop();
         }
     }
@@ -58,15 +58,15 @@ public class LogEventBroadcaster {
         long pointer = 0;
         for (; ; ) {
             long length = file.length();
-            if(length < pointer){
+            if (length < pointer) {
                 // file was reset
                 pointer = length;
-            }else if (length > pointer){
+            } else if (length > pointer) {
                 // 文件中追加了新内容
                 RandomAccessFile accessFile = new RandomAccessFile(file, "r");
                 accessFile.seek(pointer); // 设置当前的文件指针，确保旧的文件内容没再次发送
                 String line;
-                while ((line = accessFile.readLine()) != null){
+                while ((line = accessFile.readLine()) != null) {
                     // 每行日志内容被组装成logevent对象后，写入至Channel，被发送出去
                     LogEvent logEvent = new LogEvent(null, file.getAbsolutePath(), line, -1);
                     channel.writeAndFlush(logEvent);
@@ -75,9 +75,9 @@ public class LogEventBroadcaster {
                 accessFile.close();
             }
 
-            try{
+            try {
                 Thread.sleep(1000); // 休眠1秒再执行
-            }catch (Exception e){
+            } catch (Exception e) {
                 Thread.interrupted();
                 break;
             }

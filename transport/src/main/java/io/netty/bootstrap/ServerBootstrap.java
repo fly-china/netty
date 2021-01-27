@@ -15,7 +15,6 @@
  */
 package io.netty.bootstrap;
 
-import com.sun.xml.internal.bind.v2.TODO;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelConfig;
 import io.netty.channel.ChannelFuture;

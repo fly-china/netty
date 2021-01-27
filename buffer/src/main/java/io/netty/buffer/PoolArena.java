@@ -53,8 +53,8 @@ abstract class PoolArena<T> implements PoolArenaMetric {
 
     final int directMemoryCacheAlignment;   // 对齐基准，默认：0
     final int directMemoryCacheAlignmentMask; // 默认：-1。二进制：1111 1111 1111 1111 1111 1111 1111 1111
-    private final PoolSubpage<T>[] tinySubpagePools; // tiny 类型的 PoolSubpage 数组，每个元素都是双向链表
-    private final PoolSubpage<T>[] smallSubpagePools;// small 类型的 PoolSubpage 数组，每个元素都是双向链表
+    private final PoolSubpage<T>[] tinySubpagePools; // tiny 类型的 PoolSubpage 数组，每个元素都是双向链表。容量为32
+    private final PoolSubpage<T>[] smallSubpagePools;// small 类型的 PoolSubpage 数组，每个元素都是双向链表。容量为4
 
     private final PoolChunkList<T> q050;
     private final PoolChunkList<T> q025;
@@ -245,7 +245,8 @@ abstract class PoolArena<T> implements PoolArenaMetric {
                     return;
                 }
             }
-            // 在 PoolSubpage 链表中，分配不到 Subpage 内存块，所以申请 Normal Page 内存块。实际上，只占用其中一块 Subpage 内存块
+            // 在 PoolSubpage 链表中，分配不到 Subpage 内存块，所以申请 Normal Page 内存块。
+            // 实际上，申请一个 Page 节点，仅占用其中一块 Subpage 内存块，并进行 PoolSubpage 链表初始化
             synchronized (this) {
                 allocateNormal(buf, reqCapacity, normCapacity);
             }

@@ -16,8 +16,6 @@
 
 package io.netty.buffer;
 
-import com.sun.xml.internal.ws.api.model.wsdl.WSDLOutput;
-
 import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -135,7 +133,7 @@ final class PoolChunk<T> implements PoolChunkMetric {
     final int offset;
     private final byte[] memoryMap; // 分配信息满二叉树，index 为节点编号,默认长度为：4096
     private final byte[] depthMap;  // 高度信息满二叉树，index 为节点编号,默认长度为：4096
-    private final PoolSubpage<T>[] subpages; // PoolSubpage 数组
+    private final PoolSubpage<T>[] subpages; // PoolSubpage 数组, 默认长度为：2048 (2048个叶子节点，每个节点的 Page 可都作为 Subpage 分配)。
     /**
      * Used to determine if the requested capacity is equal to or greater than pageSize.
      */
@@ -518,7 +516,11 @@ final class PoolChunk<T> implements PoolChunkMetric {
         // 获得 memoryMap 数组的编号(下标)
         int memoryMapIdx = memoryMapIdx(handle);
 
-        // 获得 SubPage 对象
+        /**
+         * 获得 SubPage 对象。
+         * subpages 共2048个元素，分别代表是叶子节点中哪个 Page 节点形成的 Subpage。
+         * 所以得到对应 SubPage 的头节点
+         */
         PoolSubpage<T> subpage = subpages[subpageIdx(memoryMapIdx)];
         assert subpage.doNotDestroy;
         assert reqCapacity <= subpage.elemSize;
